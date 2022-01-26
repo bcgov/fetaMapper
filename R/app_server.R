@@ -41,20 +41,23 @@ app_server <- function( input, output, session ) {
     summaryTable<-fetaPolyRender() %>% 
                     as.data.frame %>% 
                     summarise(Total =n(), abund=sum(abund), n_fish= sum(n_fish), thlb = sum(thlb)) %>%
-                    mutate(abund=as.integer(abund), n_fish = as.integer(n_fish))
+                    mutate(abund=as.integer(abund), n_fish = as.integer(n_fish), thlb = as.integer(thlb))
     
-    colnames(summaryTable) <- c("Total", "Est. N", "Pot. N", "THLB")
-    summaryTable
+    colnames(summaryTable) <- c("Total", "Estimated N", "Potential N", "THLB (ha)")
+    summaryTable<-sapply(summaryTable[1:4,], FUN=function(x) prettyNum(x, big.mark=","))
+    head(summaryTable, 1)
   })
   
   ## render the old growth table
+  
   output$oldGrowthSummary<-renderTable({
     summaryTable<-fetaPolyRender() %>% 
       as.data.frame %>% 
-      summarise(ogma = sum(ogma), og_dc = sum(dc_ogma), defer = sum(defer), defer_dc = sum(dc_defer))
+      summarise(ogma = as.integer(sum(ogma)), og_dc = as.integer(sum(dc_ogma)), defer = sum(defer), defer_dc = sum(dc_defer))
     
-    colnames(summaryTable) <- c("OGMA", "OGMA Overlap Den+Cav", "Deferral", "Deferral Overlap Den+Cav")
-    summaryTable
+    colnames(summaryTable) <- c("OGMA (ha)", "OGMA Overlap Den+Cav (ha)", "Deferral (ha)", "Deferral Overlap Den+Cav (ha)")
+    summaryTable<-sapply(summaryTable[1:4,], FUN=function(x) prettyNum(x, big.mark=","))
+    head(summaryTable, 1)
   })
     
   ## render the base leaflet map  
@@ -118,12 +121,26 @@ app_server <- function( input, output, session ) {
       
   })
  
-  output$fetaData<-renderDataTable({
-    data.table(st_drop_geometry(fetaPolyRender()))[,c("fid", "abund", "hab_den", "hab_mov", "hab_cav", "hab_rus", "hab_cwd", "ogma", "defer")]
+  output$fetaData<-DT::renderDataTable({
+    a<-st_drop_geometry(fetaPolyRender()) %>%
+      select(fid, abund, n_fish, hab_den, hab_mov, hab_cav, hab_rus, hab_cwd, ogma, defer) %>%
+      mutate(abund =round(abund, 4))
+    DT::datatable(a, 
+                  caption = 'FETAs to be exported (omitting some of columns)',
+                  extensions = "Buttons",
+                  options = list("pageLength" = 10, dom = 'Bfrtip',
+                                 buttons = list(list(extend = 'colvis', columns = c(1, 2, 3,4,5,6,7)))
+                  )
+    )
   })
   
   output$fetaInfoTable<-renderTable({
     fetaInfo()
+  })
+  
+  output$selectedFisherHabitatThresholds<-renderText({
+    paste0("Denning >",input$threshold_hab_den, "%, Movement >", input$threshold_hab_mov,
+           "%, Cavity >", input$threshold_hab_cav, "%, Rust >", input$threshold_hab_rus, "% CWD >", input$threshold_hab_cwd, "%")
   })
   
   output$tsaSelected<-renderText({
@@ -171,7 +188,7 @@ app_server <- function( input, output, session ) {
   observeEvent(input$map_geojson_click, {
    
     fetaInfo( data.table::data.table(Attribute =c("fid",  "denning", "movement", "cavity", "rust", "cwd","thlb", "ogma", "defer"),
-                                     Value = c(input$map_geojson_click$properties$fid,input$map_geojson_click$properties$hab_den,
+                                     Value = c(as.integer(input$map_geojson_click$properties$fid),input$map_geojson_click$properties$hab_den,
                                                input$map_geojson_click$properties$hab_mov, input$map_geojson_click$properties$hab_cav, 
                                                input$map_geojson_click$properties$hab_rus, input$map_geojson_click$properties$hab_cwd,
                                                input$map_geojson_click$properties$thlb,input$map_geojson_click$properties$ogma, 
