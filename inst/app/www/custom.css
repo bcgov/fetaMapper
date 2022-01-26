@@ -1,0 +1,249 @@
+ 
+
+/* Fonts -------------- */
+@font-face {
+  font-family: 'BCSans';
+  font-style: normal;
+  src: url('fonts/BCSans/BCSans-Regular.woff2') format('woff2'), /* Optimized for very modern browsers */
+       url('fonts/BCSans/BCSans-Regular.woff') format('woff'); /* Modern Browsers */
+}
+@font-face {
+  font-family: 'BCSans';
+  font-style: italic;
+  src: url('fonts/BCSans/BCSans-Italic.woff2') format('woff2'), /* Optimized for very modern browsers */
+       url('fonts/BCSans/BCSans-Italic.woff') format('woff'); /* Modern Browsers */
+}
+@font-face {
+  font-family: 'BCSans';
+  font-weight: 700;
+  src: url('fonts/BCSans/BCSans-Bold.woff2') format('woff2'), /* Optimized for very modern browsers */
+       url('fonts/BCSans/BCSans-Bold.woff') format('woff'); /* Modern Browsers */
+}
+@font-face {
+  font-family: 'BCSans';
+  font-style: italic;
+  font-weight: 700;
+  src: url('fonts/BCSans/BCSans-BoldItalic.woff2') format('woff2'), /* Optimized for very modern browsers */
+       url('fonts/BCSans/BCSans-BoldItalic.woff') format('woff'); /* Modern Browsers */
+}
+
+/* General ------------ */
+body {
+  font-family: 'BCSans', 'Noto Sans', Verdana, Arial, sans-serif;
+  color:#003366 ;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #003366;
+}
+
+/* Header ------------- */
+.main-header {
+  background-color: #036;
+  border-bottom: 2px solid #fcba19;
+  color: #fff;
+  padding: 15px 0;
+}
+
+.main-header .logo {
+  text-align: left;
+  font-weight: bold;
+}
+
+.main-header .logo img {
+  margin-right: 25px;
+}
+
+/* Tooltips ------------- */
+.tooltip .tooltiptext,
+.tooltip .tooltip-inner {
+  background-color: #1A5A96;
+}
+
+/* Miscellaneous ------------- */
+.fa-info-circle {
+  color: #1A5A96;
+}
+
+/* Footer ------------- */
+footer {
+  background-color: #036;
+  border-top: 2px solid #fcba19;
+  color: #fff;
+  font-family: â€˜BCSansâ€™, â€˜Noto Sansâ€™, Verdana, Arial, sans-serif;
+}
+
+footer .container {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  height: 46px;
+}
+
+footer ul {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin: 0;
+  color: #fff;
+  list-style: none;
+  align-items: center;
+  height: 100%;
+}
+
+footer ul li {
+  padding: 0 9px;
+}
+
+footer ul li a {
+  font-size: 14px;
+  font-weight: normal;  /* 400 */
+  color: #fff;
+  border-right: none;
+  padding: 0 4px;
+  margin: 0 2px;
+}
+
+
+.padding{
+  padding-right: 40px;
+}
+
+/* ----- Navbar ------ */
+.navbar {
+  margin-bottom: 0px
+}
+
+/* Make nav bar links uppercase and heavier weight */
+.navbar-default .navbar-nav > li > a {
+  text-transform: uppercase;
+  color: white;
+}
+/* Account for logo size */
+.navbar-brand {
+  height: 80px; 
+  font-size: 25px;
+  text-align: right;
+}
+
+.navbar-default .navbar-nav > .open > a:hover{
+  color:white;
+}
+
+.navbar-default .navbar-nav > li > a:hover{
+  color: white;
+}
+.navbar-default .navbar-nav > li > a {
+  line-height: 50px;
+  bottom: 0px;
+  margin-left: 35px; 
+  color:white;
+}
+
+/* Set background on navbar, set bottom border and mock header */
+.navbar-default {
+  background-color: #036;
+  border-bottom: 1px solid var(--primary-color);
+  border-top: 1px solid var(--primary-color);
+}
+
+.navbar-default .navbar-brand {
+  color: white;
+}
+
+.navbar-default .navbar-brand:hover {
+  color: white;
+}
+
+/* Push navbar links to the right */
+.navbar-nav {
+  float: right;
+}
+
+.navbar.navbar-inverse .navbar-header .navbar-brand {
+        display: block;
+        text-align:center;
+        float: center;
+        vertical-align: center;
+}
+
+
+
+
+.padding{
+  padding-right: 40px;
+}
+
+/* ----- Navbar ------*/ 
+.navbar {
+  margin-bottom: 10px;
+}
+
+/* Make nav bar links uppercase and heavier weight */
+.navbar-default .navbar-nav > li > a {
+  text-transform: uppercase;
+  font-weight: var(--heavy-weight);
+  color: white;
+}
+
+/* Account for logo size */
+.navbar-brand {
+  height: 80px; 
+  font-size: 25px;
+  text-align: right;
+}
+
+
+.navbar-default .navbar-nav > li > a {
+  line-height: 50px;
+  bottom: 0px;
+  margin-left: 35px; 
+  color: white;
+}
+
+/* Set background on navbar, set bottom border and mock header */
+.navbar-default {
+  background-color: #036;
+  border-bottom: 1px solid var(--primary-color);
+  border-top: 1px solid var(--primary-color);
+}
+
+.navbar-default .navbar-brand {
+  color: white;
+}
+
+
+/*Push navbar links to the right*/ 
+.navbar-nav {
+  float: right;
+}
+
+ .navbar.navbar-inverse .navbar-header .navbar-brand {
+        display: block;
+        text-align:center;
+        float: center;
+        vertical-align: center;
+}
+
+.navbar.navbar-inverse .navbar-header{
+  float: center; 
+}
+ 
+/*Sliders*/
+.irs--shiny .irs-from,
+.irs--shiny .irs-to,
+.irs--shiny .irs-single {
+  background-color: #036;
+  
+}
+
+.irs--shiny .irs-bar {
+  background-color: #036;
+}
+ 
+/*Leaflet*/
+.leaflet-control-scale-line {
+  color: #0a4d7d;
+  border-color: #036
+}

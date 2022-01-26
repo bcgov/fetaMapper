@@ -1,0 +1,15 @@
+Package: fetaMapper
+Title: FETA
+Version: 0.0.0.9000
+Authors@R: person('Kyle', 'Lochhead', email = 'kyle.lochhead@gov.bc.ca', role = c('cre', 'aut'))
+Description: Fisher Equivalent Territory Area Mapper
+License: What license is it under?
+Imports: 
+    config (>= 0.3.1),
+    golem (>= 0.3.1),
+    shiny (>= 1.7.1),
+    dplyr (>= 0.8.5),
+    leaflet (>= 2.0.3)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.2
