@@ -76,7 +76,7 @@ td, th {
 
 .tooltip-inner {
     background-color: #1A5A96;
-    opacity: 1 !important;
+    opacity: 1;
 }
 
 .tooltip.bs-tooltip-right .tooltip-arrow::before {
