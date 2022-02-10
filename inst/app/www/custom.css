@@ -144,13 +144,14 @@ footer ul li a {
 
 /* ----- Navbar ------ */
 .navbar {
-  margin-bottom: 0px
+  /*margin-bottom: 0px*/
 }
 
 /* Make nav bar links uppercase and heavier weight */
 .navbar-default .navbar-nav > li > a {
   text-transform: uppercase;
   color: white;
+ 
 }
 /* Account for logo size */
 .navbar-brand {
@@ -168,7 +169,7 @@ footer ul li a {
 }
 .navbar-default .navbar-nav > li > a {
   line-height: 50px;
-  bottom: 0px;
+  /*bottom: 0px;*/
   margin-left: 35px; 
   color:white;
 }
@@ -176,7 +177,7 @@ footer ul li a {
 /* Set background on navbar, set bottom border and mock header */
 .navbar-default {
   background-color: #036;
-  border-bottom: 1px solid var(--primary-color);
+  border-bottom: 2px solid #fcba19;
   border-top: 1px solid var(--primary-color);
 }
 
@@ -234,12 +235,6 @@ footer ul li a {
   color: white;
 }
 
-/* Set background on navbar, set bottom border and mock header */
-.navbar-default {
-  background-color: #036;
-  border-bottom: 1px solid var(--primary-color);
-  border-top: 1px solid var(--primary-color);
-}
 
 .navbar-default .navbar-brand {
   color: white;

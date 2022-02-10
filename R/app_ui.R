@@ -16,6 +16,7 @@
 #' @import dplyr
 #' @import purrr
 #' @import shinyjs
+#' @import fetaMapper
 
 app_ui <- function(request) {
   attr_choices<-list("abund","n_fish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
@@ -99,7 +100,28 @@ app_ui <- function(request) {
                                           tableOutput("fetaInfoTable")
                                           )
                          )
-                       )
+                         
+                       ),
+                       tags$footer(actionLink("contactUs", "Contact Us ", onclick = "window.open('https://www.bcfisherhabitat.ca/contact/')" ), 
+                                   align = "center",
+                                   style = "
+                bottom:0;
+                width:100%;
+                height:40px;   /* Height of the footer */
+                color: white;
+                padding:10px;
+                background-color: #036;
+                z-index: 2000;
+                font-family:sans-serif;"),
+                       tags$footer(
+                         tags$style(HTML('#contactUs{color:white}'))
+                       ),
+                       tags$head(tags$script(HTML('
+                           Shiny.addCustomMessageHandler("jsCode",
+                           function(message) {
+                           eval(message.value);
+                           });'
+                       )))
                       
               ),
               tabPanel("Data",
