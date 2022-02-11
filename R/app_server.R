@@ -112,11 +112,29 @@ app_server <- function( input, output, session ) {
                     info_format = "text/html",
                     tiled = T
                   ))%>%
+      addWMS(baseUrl = "https://openmaps.gov.bc.ca/geo/ows/",
+             layers = c("pub:WHSE_LAND_USE_PLANNING.RMP_OGMA_LEGAL_CURRENT_SVW"),
+             group = "OGMA-legal",
+             options = leaflet::WMSTileOptions(
+               transparent = TRUE,
+               format = "image/png",
+               info_format = "text/html",
+               tiled = T
+             ))%>%
+      addWMS(baseUrl = "https://openmaps.gov.bc.ca/geo/ows/",
+             layers = c("pub:WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW"),
+             group = "OGMA-nonlegal",
+             options = leaflet::WMSTileOptions(
+               transparent = TRUE,
+               format = "image/png",
+               info_format = "text/html",
+               tiled = T
+             ))%>%
       addLayersControl(
         baseGroups = "WorldImagery",
-        overlayGroups = c("FETA","TSA","Parks","FADM", "WHA", "UWR" ),
+        overlayGroups = c("FETA","TSA","Parks","FADM", "WHA", "UWR", "OGMA-legal", "OGMA-nonlegal" ),
         options = layersControlOptions(collapsed = TRUE)) %>%
-      hideGroup(c("TSA", "FADM", "WHA", "UWR") ) %>%
+      hideGroup(c("TSA", "FADM", "WHA", "UWR", "OGMA-legal", "OGMA-nonlegal") ) %>%
       addScaleBar(position = "topleft")
       
   })
