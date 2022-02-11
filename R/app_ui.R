@@ -16,7 +16,6 @@
 #' @import dplyr
 #' @import purrr
 #' @import shinyjs
-#' @import fetaMapper
 
 app_ui <- function(request) {
   attr_choices<-list("abund","n_fish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
@@ -42,7 +41,25 @@ app_ui <- function(request) {
                                  "Select a timber supply area and attribute to map",
                                  "right"
                                )),
-                           selectizeInput("tsa", "Select by TSA", choices = c("Clear All", tsaBnds),
+                           selectizeInput("tsa", "Select by TSA", choices = c("Clear All", c( "100 Mile Timber Supply Area",
+                                                                                              "Bulkley Timber Supply Area",
+                                                                                             "Cascadia Timber Supply Area",
+                                                                                             "Dawson Creek Timber Supply Area",
+                                                                                             "Fort St.John Timber Supply Area",                                                                                                                                                                                  
+                                                                                             "Great Bear Rainforest North Timber Supply Area",
+                                                                                              "Great Bear Rainforest South Timber Supply Area",
+                                                                                              "Kamloops Timber Supply Area",
+                                                                                             "Kispiox Timber Supply Area",
+                                                                                             "Lakes Timber Supply Area",
+                                                                                             "Lillooet Timber Supply Area",
+                                                                                              "Mackenzie Timber Supply Area",
+                                                                                              "Morice Timber Supply Area",
+                                                                                             "Nass Timber Supply Area",
+                                                                                             "Prince George Timber Supply Area",
+                                                                                             "Williams Lake Timber Supply Area",
+                                                                                             "Okanagan Timber Supply Area",
+                                                                                              "Quesnel Timber Supply Area",
+                                                                                              "Robson Valley Timber Supply Area")),
                              selected = NULL, multiple = TRUE, 
                              options = list('plugins' = list('remove_button'), placeholder = 'All or Select by TSA', 'persist' = F)
                            ),

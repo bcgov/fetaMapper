@@ -18,7 +18,7 @@
 #' @import shiny
 #' @noRd
 app_server <- function( input, output, session ) {
-  
+
   #Reactive to store click on feta information
   fetaInfo <- reactiveVal()
   fetaInfo(data.table::data.table(Attribute =c("FID", "Denning", "Movement", "Cavity", "Rust", "CWD", "THLB", "OGMA", "Deferral"),
@@ -162,10 +162,25 @@ app_server <- function( input, output, session ) {
   # Downloadable csv of selected dataset ----
   output$downloadData <- downloadHandler(
     filename = function() {
-      paste("feta", Sys.Date(),".shp", sep = "")
+      paste("feta", Sys.Date(),".zip", sep = "")
     },
     content = function(file) {
-      st_write(fetaPolyRender(), file, row.names = FALSE)
+      # create a temp folder for shp files
+      temp_shp <- tempdir()
+      st_write(fetaPolyRender(), paste0(temp_shp,"/feta.shp"), row.names = FALSE)
+      
+      zip_file <- file.path(temp_shp, "feta_shp.zip")
+      shp_files <- list.files(temp_shp, "feta",
+                              full.names = TRUE)
+      # zip
+      zip_command <- paste("zip -j", 
+                           zip_file, 
+                           paste(shp_files, collapse = " "))
+      system(zip_command)
+      # copy the zip file to the file argument
+      file.copy(zip_file, file)
+      # remove all the files created
+      file.remove(zip_file, shp_files)
     }
   )
   

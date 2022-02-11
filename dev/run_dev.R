@@ -9,7 +9,7 @@ golem::detach_all_attached()
 golem::document_and_reload()
 
 # Run the application
-options('shiny.port'=3838,shiny.host='0.0.0.0'); run_app(with='runApp')
+options('shiny.port'=3838,shiny.host='0.0.0.0'); fetaMapper::run_app()
 
 
 
