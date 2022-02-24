@@ -18,8 +18,10 @@
 #' @import shinyjs
 
 app_ui <- function(request) {
-  attr_choices<-list("abund","n_fish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
-  names(attr_choices)<-c("Estimated Abundance (N)", "Potential Abundance (N)", "Relative Probability Occupancy", "Denning", "Movement", "Resting Rust", "Resting CWD", "Resting Cavity", "THLB", "OGMA", "Old Growth Deferral")
+  
+  attr_choices<-list("abund","abund_pot", "nfish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
+  names(attr_choices)<-c("Estimated Abundance (N)", "Potential Abundance (N)", "Density", "Relative Probability Occupancy", "Denning", "Movement", "Resting Rust", "Resting CWD", "Resting Cavity", "THLB", "OGMA", "Old Growth Deferral")
+  
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
@@ -38,54 +40,37 @@ app_ui <- function(request) {
                            div(h4("Query"),
                              icon('info-circle') %>%
                                bsplus::bs_embed_tooltip(
-                                 "Select a timber supply area and attribute to map",
+                                 "Select a population, area of interest and attribute to map",
                                  "right"
                                )),
-                           selectizeInput("tsa", "Select by TSA", choices = c("Clear All", c( "100 Mile Timber Supply Area",
-                                                                                              "Bulkley Timber Supply Area",
-                                                                                             "Cascadia Timber Supply Area",
-                                                                                             "Dawson Creek Timber Supply Area",
-                                                                                             "Fort St.John Timber Supply Area",                                                                                                                                                                                  
-                                                                                             "Great Bear Rainforest North Timber Supply Area",
-                                                                                              "Great Bear Rainforest South Timber Supply Area",
-                                                                                              "Kamloops Timber Supply Area",
-                                                                                             "Kispiox Timber Supply Area",
-                                                                                             "Lakes Timber Supply Area",
-                                                                                             "Lillooet Timber Supply Area",
-                                                                                              "Mackenzie Timber Supply Area",
-                                                                                              "Morice Timber Supply Area",
-                                                                                             "Nass Timber Supply Area",
-                                                                                             "Prince George Timber Supply Area",
-                                                                                             "Williams Lake Timber Supply Area",
-                                                                                             "Okanagan Timber Supply Area",
-                                                                                              "Quesnel Timber Supply Area",
-                                                                                              "Robson Valley Timber Supply Area")),
+                           radioButtons(inputId = "pop", label="Select a fisher population", choices =c("Boreal", "Columbia"), inline =T, selected = character(0)),
+                           selectizeInput(inputId ="aoi", label="Select an area of interest", choices = "All",
                              selected = NULL, multiple = TRUE, 
-                             options = list('plugins' = list('remove_button'), placeholder = 'All or Select by TSA', 'persist' = F)
+                             options = list('plugins' = list('remove_button'), placeholder = 'All', 'persist' = F)
                            ),
-                           selectInput("colorFilt", "Attribute to map", choices = attr_choices
+                           selectInput("colorFilt", "Select an attribute to map", choices = attr_choices
                            ),
         
                            conditionalPanel("input.colorFilt == 'hab_den'",
-                            sliderInput("threshold_hab_den", "Denning Habitat (%)", 0, 20, 0, step= 0.1)
+                            sliderInput("threshold_hab_den", "Denning habitat (%)", 0, 20, 0, step= 0.1)
                           ),
                            conditionalPanel("input.colorFilt == 'hab_cav'",
                                            sliderInput("threshold_hab_cav", "Cavity Habitat (%)", 0,25, 0, step= 0.1)
                           ),
                            conditionalPanel("input.colorFilt == 'hab_mov'",
-                                           sliderInput("threshold_hab_mov", "Movement Habitat (%)", 0, 50, 0, step= 0.1)
+                                           sliderInput("threshold_hab_mov", "Movement habitat (%)", 0, 50, 0, step= 0.1)
                           ),
                            conditionalPanel("input.colorFilt == 'hab_rus'",
-                                           sliderInput("threshold_hab_rus", "Rust Habitat (%)", 0, 25, 0, step= 0.1)
+                                           sliderInput("threshold_hab_rus", "Rust habitat (%)", 0, 25, 0, step= 0.1)
                           ),
                            conditionalPanel("input.colorFilt == 'hab_cwd'",
-                                           sliderInput("threshold_hab_cwd", "CWD Habitat (%)", 0, 25, 0, step= 0.1)
+                                           sliderInput("threshold_hab_cwd", "CWD habitat (%)", 0, 25, 0, step= 0.1)
                           ),
                           conditionalPanel("input.colorFilt == 'ogma'",
                                            sliderInput("threshold_ogma", "OGMA (ha)", 0, 1000, 0, step= 10)
                           ),
                           conditionalPanel("input.colorFilt == 'defer'",
-                                           sliderInput("threshold_defer", "Old Growth Deferral (ha)", 0, 1000, 0, step= 10)
+                                           sliderInput("threshold_defer", "Old growth deferral (ha)", 0, 1000, 0, step= 10)
                           ),
                           div(textOutput("selectedFisherHabitatThresholds") %>%
                                 bsplus::bs_embed_tooltip(
@@ -141,13 +126,33 @@ app_ui <- function(request) {
                        )))
                       
               ),
+              tabPanel("Methods",
+                       sidebarLayout(
+                         sidebarPanel(
+                           fluidRow(
+                             img(src = "www/img/FCP.png", width = 100),
+                             HTML("<h4>Attribute Definitions<h4> <br>
+                                  <h5>Use the drop down list below to get information about the attributes used in FETA Mapper.<h5>")
+                           ),
+                           fluidRow(
+                             selectizeInput(inputId ="attribute_def", label="Select an attribute", choices = c("Overview", attr_choices, "Denning", "Movement"),
+                                            selected = NULL, multiple = FALSE, 
+                                            options = list('plugins' = list('remove_button'), placeholder = 'Overview', 'persist' = F)
+                             )
+                           )
+                         ), 
+                         mainPanel(
+                             uiOutput("ui_overview")
+                         )
+                       )
+                      ),
               tabPanel("Data",
                        sidebarLayout(
                          sidebarPanel(
                            #img(src="www/img/fisher_logo.png",height=72,width=72),
                            h4("Results from query"),
-                           tags$h5("TSA:"),
-                           htmlOutput("tsaSelected", ),
+                           tags$h5("Area of interest:"),
+                           htmlOutput("aoiSelected", ),
                            h5("FETAs with Habitat (%):"),
                            tableOutput("rsHabitat"),
                            h5("FETAs with Old Growth (ha):"),
@@ -183,7 +188,7 @@ app_ui <- function(request) {
                            });'
                        )))
               )
-              )
+            )
       )
       
     )

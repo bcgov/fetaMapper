@@ -23,6 +23,6 @@ run_app <- function(
       enableBookmarking = enableBookmarking, 
       uiPattern = uiPattern
     ), 
-    golem_opts = list(..., fetaPolySf=fetaMapper::fetaPolySf, fetaTSA= fetaMapper::fetaTSA)
+    golem_opts = list(...)
   )
 }
