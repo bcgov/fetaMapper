@@ -274,3 +274,7 @@ footer ul li a {
   color: #0a4d7d;
   border-color: #036
 }
+
+.leaflet-popup-content {
+  overflow-x: scroll !important;
+}
