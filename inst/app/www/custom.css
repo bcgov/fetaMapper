@@ -278,3 +278,11 @@ footer ul li a {
 .leaflet-popup-content {
   overflow-x: scroll !important;
 }
+
+#intro {
+  position: absolute;
+  width: 300px;
+  height: 150px;
+  left: 55%;
+  margin: -100px 0 0 -150px;
+}

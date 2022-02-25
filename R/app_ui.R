@@ -33,7 +33,30 @@ app_ui <- function(request) {
     fluidPage(
       shinyjs::useShinyjs(), 
       navbarPage(collapsible = T, id="nav",
-              title = div(img(src ='www/img/gov3_bc_logo.png', class = "padding"),'Fisher Equivalent Territory Area (FETA)'),
+              title = div(img(src ='www/img/gov3_bc_logo.png', class = "padding"),'Fisher Equivalent Territory Area (FETA) Mapper'),
+              tabPanel("Methods",
+                       sidebarLayout(
+                         sidebarPanel(
+                           fluidRow(
+                             HTML("<h4>Navigation</h4><br><br>
+                                  <li>Use the METHODS tab to get information about the fisher attributes</li>
+                                  <li>Use the MAP tab to interactively explore the fisher attributes</li>
+                                  <li>Use the DATA tab to download the fisher attributes you were looking at in the MAP</li>
+                                  <br><br><h4>Attribute Definitions</h4><br>
+                                  <h5>Use the drop down list below to get information about the attributes used in FETA Mapper.</h5>")
+                           ),
+                           fluidRow(
+                             selectizeInput(inputId ="attribute_def", label="Select an attribute", choices = c("Overview", attr_choices),
+                                            selected = NULL, multiple = FALSE, 
+                                            options = list('plugins' = list('remove_button'), placeholder = 'Overview', 'persist' = F)
+                             )
+                           )
+                         ), 
+                         mainPanel(
+                           uiOutput("ui_overview")
+                         )
+                       )
+              ),
               tabPanel("Map",
                        sidebarLayout(
                          sidebarPanel(
@@ -126,26 +149,7 @@ app_ui <- function(request) {
                        )))
                       
               ),
-              tabPanel("Methods",
-                       sidebarLayout(
-                         sidebarPanel(
-                           fluidRow(
-                             img(src = "www/img/FCP.png", width = 100),
-                             HTML("<h4>Attribute Definitions<h4> <br>
-                                  <h5>Use the drop down list below to get information about the attributes used in FETA Mapper.<h5>")
-                           ),
-                           fluidRow(
-                             selectizeInput(inputId ="attribute_def", label="Select an attribute", choices = c("Overview", attr_choices, "Denning", "Movement"),
-                                            selected = NULL, multiple = FALSE, 
-                                            options = list('plugins' = list('remove_button'), placeholder = 'Overview', 'persist' = F)
-                             )
-                           )
-                         ), 
-                         mainPanel(
-                             uiOutput("ui_overview")
-                         )
-                       )
-                      ),
+              
               tabPanel("Data",
                        sidebarLayout(
                          sidebarPanel(

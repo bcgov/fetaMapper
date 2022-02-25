@@ -206,7 +206,7 @@ app_server <- function( input, output, session ) {
       st_write(fetaPolyRender(), paste0(temp_shp,"/feta.shp"), row.names = FALSE)
       
       zip_file <- file.path(temp_shp, "feta_shp.zip")
-      shp_files <- list.files(temp_shp, "feta",
+      shp_files <- list.files(temp_shp, "^[feta]",
                               full.names = TRUE)
       # zip
       zip_command <- paste("zip -j", 
@@ -293,97 +293,142 @@ app_server <- function( input, output, session ) {
     req(input$attribute_def)
     switch(input$attribute_def,
            Overview = {
-             tagList(HTML("<h3>Overview</h3> Fishers are territorial animals that require specific forest structures to meet their life history needs. While each individual fisher will have a unique territory shape and location (i.e., home range), we cannot identify the location of each fisher territory across BC. Therefore, we used a spatial grid of hexagons with an area of 30 km2 to represent a fisher equivalent territory area (FETA). We used a 30 km2 size because it approximates the measured average home range size of fisher in BC (Rich Weir, pers. comm.). These hexagons represent a territory area required by fisher, within which we can estimate habitat characteristics and assess whether they meet fisher needs.<br>")
-                     )
+             tagList(
+               h1(
+                div(style="display:inline-block;",img(src="www/img/FCP.png", height = 150, width = 150,style="left;"),
+                    h1("FETA Mapper"), h4("A tool to visualize and download information about fisher territories")),
+                
+               ),
+               #HTML('<h2>Welcome to the FETA Mapper!</h2>'),
+                #     img(src = "www/img/FCP.png"),
+              HTML("<h3>Overview</h3><p>Fishers are territorial animals that require specific forest structures in their territories to meet their life history needs. While each individual fisher will have a unique territory shape and location (i.e., home range), we cannot identify the location of each fisher territory across British Columbia (BC). Therefore, we used a spatial grid of hexagons with an area of 30 km<sup>2</sup> to represent a fisher equivalent territory area (FETA). A 30 km<sup>2</sup> size was used because it approximates the measured average home range size of fisher in BC (Rich Weir, pers. comm.). These hexagons represent a territory area required by fisher, within which we can estimate habitat characteristics and assess whether they meet fisher needs.</p><br>")
+            )
             },
            abund = {
-             tagList(HTML("<h3>Estimated Abundance</h3> Fisher abundance is the estimated number of fisher occupying an area of interest. Two sources of information were used to estimate fisher abundance within a FETA: the relative probability of territory occupancy using the model developed by Weir and Corbould (2010) and the fisher habitat capability rating (a 2004 spatial file provided by Rich Weir).<br>"),
-                     HTML("<br><h4>Technical</h4> <br> The estimate of fisher abundance in a FETA then follows as: <br>"),
-                     withMathJax("$$\\text{abund=prob_}occ_FETA*∑_r^R▒〖(〖AreaFisherCapability〗_r*〖Density〗_r)〗_FETA$$"),
-                     HTML("<br> Where, N is the abundance of fisher in a FETA, rel.prob.occupancy is the relative probability of occupancy (Weir and Corbould 2010) , AreaFisherCapability is the area (in 1000 km2) of the rth fisher capability rating and Density is the density estimate for the rth fisher capability rating (R is the number of fisher capability ratings in a FETA).<br>"),
-                     HTML("<br><h4>Data Reference</h4><br>abund")
+             tagList(
+               HTML("<h3>Estimated Abundance</h3><p>Estimated abundance is the number of fishers occupying a FETA after an adjustment using the relative probability of occupancy. Two sources of information were used to estimate fisher abundance within a FETA: the relative probability of territory occupancy (Weir and Corbould 2010) and the 2004 estimate of fisher habitat capability rating (provided by the Fisher team).</p><br>"),
+               HTML("<h4>Attribute Name</h4> <p><i>abund</i></p>"),
+               HTML("<h4>Technical</h4><p>The estimate of fisher abundance in a FETA then follows as:</p>"),
+               withMathJax("$$\\text{abund = p_occ (nfish)}$$"),
+               HTML("<p>Where, abund is the abundance of fisher in a FETA, p_occ is the relative probability of occupancy (Weir and Corbould 2010) , nfish is the density or number of fisher per FETA (30 km<sup>2</sup>)</p>"),
+               HTML("<h4>References</h4><p><li>Weir, R.D., Corbould, F.B. 2010. Factors Affecting Landscape Occupancy by Fishers in North-Central British Columbia. Journal of Wildlife Management 74(3):405–410; 2010; DOI: 10.2193/2008-579</li></p>")
              )
              },
            abund_pot = {
              tagList(
-               HTML("<h3>Potential Abundance</h3>"),
-               HTML("<br><h4>Technical</h4><br> <br>"),
-               HTML("<br><h4>Data Table<h4><br>abund_pot")
-             )
+               HTML("<h3>Potential Abundance</h3><p>Potential abundance is the number of fishers occupying a FETA that is adjusted using a maximally estimated relative probability of occupancy. Two sources of information were used to estimate fisher abundance within a FETA: the relative probability of territory occupancy (Weir and Corbould 2010) and the 2004 estimate of fisher habitat capability rating (provided by the Fisher team).</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>abund_pot</i></p>"),
+               HTML("<h4>Technical</h4><p>Potential abundance is estimated as follows:</p>"),
+               withMathJax("$$\\text{abund_pot = p_occ_max (nfish)}$$"),
+               HTML("<p>Where, abund_pot is the abundance of fisher in a FETA, p_occ_max is the relative probability of occupancy calculated with the assumption that there are no hectares less than 12 years of age (Weir and Corbould 2010) , nfish is the density or number of fisher per FETA (30 km<sup>2</sup>)</p>"),
+               HTML("<h4>References</h4><p><li>Weir, R.D., Corbould, F.B. 2010. Factors Affecting Landscape Occupancy by Fishers in North-Central British Columbia. Journal of Wildlife Management 74(3):405–410; 2010; DOI: 10.2193/2008-579</li></p>")
+            )
            },
            nfish = {
              tagList(
-               HTML("<h3>Density</h3> The density of fisher or number of fisher per FETA (30 km2). We used a fisher capability rating to adjust a maximum fisher density estimate of 16.3 fisher per 1000 km2 (taken from the Williston area of the B.C). “A habitat capability rating is defined as the ability of the habitat, under the optimal natural conditions for a species to provide its life requisites, irrespective of the current condition of the habitat” (https://www2.gov.bc.ca/gov/content/environment/plants-animals-ecosystems/wildlife/wildlife-habitats/wildlife-habitat-mapping)."),
-               HTML("<br><h4>Technical</h4> <br> Fisher density was calculated by habitat capability rating based on the capability rating adjustment provided in Table 1. The proportion of area of a FETA within each fisher capability rating was then multiplied by the respective fisher density estimate found in Table 1 and then summed across the number of fisher capability ratings to estimate fisher density within a FETA <br>"),
-               HTML("<br><h4>Data Table<h4><br>nfish")
+               HTML("<h3>Density</h3><p>The density of fisher or the number of fisher per FETA (30 km<sup>2</sup>). A fisher habitat capability rating was used to adjust a fisher density estimates.</p>"),
+               HTML('<blockquote cite="https://www2.gov.bc.ca/gov/content/environment/plants-animals-ecosystems/wildlife/wildlife-habitats/wildlife-habitat-mapping"> A habitat capability rating is defined as the ability of the habitat, under the optimal natural conditions for a species to provide its life requisites, irrespective of the current condition of the habitat.</blockquote>'),
+               HTML("<h4>Attribute Name</h4><p><i>nfish</i></p>"),
+               HTML("<h4>Technical</h4><p>Fisher density within a FETA was calculated by habitat capability rating based on the adjustment provided below. The area within a FETA by each of the fisher habitat capability rating was then multiplied by the respective fisher density estimate and then summed across the number of fisher capability ratings to estimate the FETA level fisher density.</p>"),
+               HTML('<table><thead><tr class="header"><th align="left">Fisher habitat capability rating</th><th align="left">Habitat Capability Adjustment (%)</th><th align="left">Fisher Density (N per 1000 km<sup>2</sup>)</th><th align="right">Fisher Density (N per FETA 30 km<sup>2</sup>)</th></tr></thead>
+                     <tbody>
+<tr class="odd"><td align="left">Very High</td><td align="right">100.0</td><td align="left">18.10</td><td align="right">0.5430</td></tr>
+<tr class="even"><td align="left">High</td><td align="right">71.3</td><td align="left">12.90</td><td align="right">0.3870</td></tr>
+<tr class="odd"><td align="left">Medium</td><td align="right">42.8</td><td align="left">7.75</td><td align="right">0.2325</td></tr>
+<tr class="even"><td align="left">Low</td><td align="right">17.4</td><td align="left">3.15</td><td align="right">0.0945</td></tr>
+</tbody></table>')
+               
              )
              },
            p_occ={
              tagList( 
-               HTML("<h3>Relative Probability of Occupancy</h3>"),
-               HTML("<br><h4>Technical</h4> <br> The relative probability of occupancy model (Weir and Corbould 2010) was estimated using: <br>"),
-               withMathJax("$$\\text{prob_occ}=(exp(-0.219*openess)/(1+exp(-0.219*openess)))/0.5$$"), 	#rel.prob.occupancy= (exp(-0.219*openess)/(1+exp(-0.219*openess)))/0.5
-               HTML("<br> Where, openness is the percentage of a FETA that is open, which includes permanently open areas (i.e., wetlands, lakes, non-vegetated, etc) and forest less than or equal to 12 years old (cutblocks and fire origin stands). Permanently open areas and forest age were queried from the Vegetation Resource Inventory projected to the year 2020."),
-               HTML("<br><h4>Data Reference<h4><br>p_occ")
+               HTML("<h3>Relative Probability of Occupancy</h3><p>The relative probability that a FETA would be occupied by a fisher.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>p_occ</i></p>"),
+               HTML("<h4>Technical</h4><p>The relative probability of occupancy model (Weir and Corbould 2010) was estimated using:</p>"),
+               withMathJax("$$\\text{p_occ}=(exp(-0.219*openess)/(1+exp(-0.219*openess)))/0.5$$"), 	#rel.prob.occupancy= (exp(-0.219*openess)/(1+exp(-0.219*openess)))/0.5
+               HTML("<br><p>Where, openness is the percentage of a FETA that is open, which includes permanently open areas (i.e., wetlands, lakes, non-vegetated, etc) and forest less than or equal to 12 years old (cutblocks and fire origin stands). Permanently open areas and forest age were queried from the Vegetation Resource Inventory projected to the year 2020.</p>"),
+               HTML("<h4>References</h4><li>Weir, R.D., and  Corbould, F.B. 2010. Factors Affecting Landscape Occupancy by Fishers in North-Central British Columbia. Journal of Wildlife Management 74(3):405–410; 2010; DOI: 10.2193/2008-579</li>")
              )
            },
            hab_den = {
              tagList(
-               HTML("<h3>Denning</h3>"),
-               HTML("<br><h4>Technical</h4> <br>"),
-               HTML("<br><h4>Data Table<h4><br>hab_den")
+               HTML("<h3>Denning</h3><p>The number of hectares within a FETA classified as reproductive denning habitat as per habitat category descriptions (at stand level) found here. In general, denning habitat is characterized by forest structure with large diameter, older <i>Populus</i> spp.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>hab_den</i></p>"),
+               HTML(paste0('<h4>Technical</h4><p>The <a href="https://catalogue.data.gov.bc.ca/dataset/vri-2020-forest-vegetation-composite-rank-1-layer-r1-" target="_blank">Vegetation Resource Inventory</a>',
+                           " was used to estimate this forest structure. The various queries are presented below by habitat zone.</p>
+<li><b>SBS-wet:</b> (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) or ((SPECIES_CD_1 LIKE 'S%') and (SPECIES_CD_2 IS NULL))) and (PROJ_AGE_1>=125) and (CROWN_CLOSURE>=30) and (QUAD_DIAM_125>=28.5) and (BASAL_AREA>=29.75) and (bec_zone_code = 'SBS') and (bec_subzone in('wk','mk','mm','mw'))</li>
+<li><b>SBS-dry:</b> (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) or ((SPECIES_CD_1 LIKE 'S%') and (SPECIES_CD_2 IS NULL))) and (PROJ_AGE_1>=125) and (CROWN_CLOSURE>=20) and (QUAD_DIAM_125>=28) and (BASAL_AREA>=28) and (bec_zone_code = 'SBS') and (bec_subzone in ('dw','dh','dk'))</li>
+<li><b>Dry Forest:</b> ((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%')) and PROJ_AGE_1>=135) or (((SPECIES_CD_1 LIKE 'F%') and (SPECIES_CD_2  IS NULL)) and PROJ_AGE_1>=207 and CROWN_CLOSURE>=20 and QUAD_DIAM_125>=34.3) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))</li>
+<li><b>Boreal:</b> (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) and (PROJ_AGE_1>=88) and (QUAD_DIAM_125>=19.5) and (PROJ_HEIGHT_1>=19)) or (((SPECIES_CD_1 LIKE 'AT%')  or (SPECIES_CD_2 LIKE 'AT%') or ( SPECIES_CD_3 LIKE 'AT%')) and (PROJ_AGE_1>=98) and (QUAD_DIAM_125>=21.3) and (PROJ_HEIGHT_1>=22.8)) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))</li>"))
              )
            },
            hab_mov={
              tagList(
-               HTML("<h3>Movement</h3> Required to safely travel between important habitats within and between territories <br>"),
-               HTML("<br><h4>Technical</h4><br>"),
-               HTML("<br><h4>Data Table<h4><br>hab_mov")
+               HTML("<h3>Movement</h3><p>The number of hectares within a FETA classified as movement as per habitat category descriptions (at stand level) found here. Movement habitat is required to safely travel between important habitats within and between territories. In general, movement habitat is linked to forest structure characterized by high crown cover.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>hab_mov</i></p>"),
+               HTML(paste0('<h4>Technical</h4><p>The <a href="https://catalogue.data.gov.bc.ca/dataset/vri-2020-forest-vegetation-composite-rank-1-layer-r1-" target="_blank">Vegetation Resource Inventory</a>',
+                           " was used to estimate this forest structure. The various queries are presented below by habitat zone.</p>
+                    <li><b>All:</b>((crown_closure + shrub_crown_closure >= 50 and crown_closure > 30) or crown_closure >= 50)</li>"))
              )
            },
            hab_rus={
              tagList(
-               HTML("<h3>Rust</h3>"),
-               HTML("<br><h4>Technical</h4> <br>"),
-               HTML("<br><h4>Data Table<h4><br>hab_rus")
+               HTML("<h3>Rust</h3><p>The number of hectares within a FETA classified as Resting Habitat: Rust broom sites as per habitat category descriptions (at stand level) found here. In general, mature spruce (<i>Picea</i> spp.) forest structure characterizes the presence of rust broom.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>hab_rus</i></p>"),
+               HTML(paste0('<h4>Technical</h4><p>The <a href="https://catalogue.data.gov.bc.ca/dataset/vri-2020-forest-vegetation-composite-rank-1-layer-r1-" target="_blank">Vegetation Resource Inventory</a>',
+                           " was used to estimate this forest structure. The various queries are presented below by habitat zone.</p>
+                    <li><b>SBS-wet:</b> ((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (CROWN_CLOSURE>=30) and (QUAD_DIAM_125>=22.7) and (BASAL_AREA>=35) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')</li>
+<li><b>SBS-dry:</b> ((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (PROJ_AGE_1>=72) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=19.6) and (BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')</li>
+<li><b>Dry Forest:</b> (((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (PROJ_AGE_1>=83) and (CROWN_CLOSURE>=40) and (QUAD_DIAM_125>=20.1)) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))</li>
+<li><b>Boreal:</b> ((((SPECIES_CD_1 LIKE 'SW%')  or (SPECIES_CD_2 LIKE 'SW%') or (SPECIES_CD_3 LIKE 'SW%')) and (PROJ_AGE_1>=78) and (CROWN_CLOSURE>=50) and (QUAD_DIAM_125>=18.5) and (PROJ_HEIGHT_1>=19) and (BASAL_AREA>=31.4 )) or (((SPECIES_CD_1 LIKE 'SB%')  or (SPECIES_CD_2 LIKE 'SB%') or ( SPECIES_CD_3 LIKE 'SB%')) and (PROJ_AGE_1>=68) and (CROWN_CLOSURE>=35) and (QUAD_DIAM_125>=17) and (PROJ_HEIGHT_1>=14.8))) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))</li>"))
+               
              )
            },
            hab_cwd={
              tagList(
-               HTML("<h3>CWD</h3>"),
-               HTML("<br><h4>Technical</h4> <br>"),
-               HTML("<br><h4>Data Table<h4><br>hab_cwd")
+               HTML("<h3>CWD</h3><p>The number of hectares within a FETA classified as resting habitat: coarse woody habitat as per habitat category descriptions (at stand level) found here. In general, older- large diameter forest structure characterizes the presence of coarse woody habitat.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>hab_cwd</i></p>"),
+               HTML(paste0('<h4>Technical</h4><p>The <a href="https://catalogue.data.gov.bc.ca/dataset/vri-2020-forest-vegetation-composite-rank-1-layer-r1-" target="_blank">Vegetation Resource Inventory</a>',
+                           " was used to estimate this forest structure. The various queries are presented below by habitat zone.</p>
+                    <li><b>SBS-wet:</b> (PROJ_AGE_1>=135) and (QUAD_DIAM_125>=22.7) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')</li>
+<li><b>SBS-dry:</b> (PROJ_AGE_1>=135) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=22.7) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')</li>
+<li><b>Dry Forest:</b> ((((SPECIES_CD_1 LIKE 'S%' and SPECIES_PCT_1>=25) or (SPECIES_CD_2 LIKE 'S%' and SPECIES_PCT_2>=25) or (SPECIES_CD_3 LIKE 'S%' and SPECIES_PCT_3>=25)) or ((SPECIES_CD_1 LIKE 'AT%' and SPECIES_PCT_1>=25) or (SPECIES_CD_2 LIKE 'AT%' and SPECIES_PCT_2>=25) or (SPECIES_CD_3 LIKE 'AT%' and SPECIES_PCT_3>=25))) and (PROJ_AGE_1>=100)) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))</li>
+<li><b>Boreal:</b> ((PROJ_AGE_1>=78) and (QUAD_DIAM_125>=18.1) and (PROJ_HEIGHT_1>=19) and (CROWN_CLOSURE>=60)) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))</li>"))
+               
              )
            },
            hab_cav={
              tagList(
-               HTML("<h3>Cavity</h3> The amount of area in hectares within a FETA classified as Resting Habitat: Cavity sites as per Habitat Category Descriptions (at stand level). These include secure locations required during daily activity bouts. In general, tall and large diameter Populus Spp forest structure characterizes cavity sites."),
-               HTML("<br><h4>Technical</h4><br>The provincial forest inventory ("), 
-               HTML('<a href="https://catalogue.data.gov.bc.ca/dataset/vri-2020-forest-vegetation-composite-rank-1-layer-r1-" target="_blank">Vegetation Resource Inventory</a>'),
-               HTML(") was used to estimate this forest structure. The following queries are used to select cavity habitat within the VRI:<br>
-             <li> SBS wet: ((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or ( SPECIES_CD_3 LIKE 'A%')) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=30) and (BASAL_AREA>=32) and (PROJ_HEIGHT_1>=35) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw') <br>
-             <li> SBS dry: (((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or (SPECIES_CD_3 LIKE 'A%')) and PROJ_HEIGHT_1>=35 and BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk') <br>"),
-               HTML("<br><h4>Data Table<h4><br>hab_cav")
+               HTML("<h3>Cavity</h3><p>The number of hectares within a FETA classified as resting habitat: cavity sites as per habitat category descriptions (at stand level) found here. These include secure locations required during daily activity bouts. In general, tall and large diameter <i>Populus</i> spp. forest structure characterizes cavity sites.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>hab_cav</i></p>"),
+               HTML(paste0('<h4>Technical</h4><p>The <a href="https://catalogue.data.gov.bc.ca/dataset/vri-2020-forest-vegetation-composite-rank-1-layer-r1-" target="_blank">Vegetation Resource Inventory</a>',
+               " was used to estimate this forest structure. The following queries are used to select cavity habitat within the VRI:<br>
+             <li><b>SBS wet:</b> ((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or ( SPECIES_CD_3 LIKE 'A%')) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=30) and (BASAL_AREA>=32) and (PROJ_HEIGHT_1>=35) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw') <br>
+             <li><b>SBS dry:</b> (((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or (SPECIES_CD_3 LIKE 'A%')) and PROJ_HEIGHT_1>=35 and BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk') <br>")),
+               
              )
            },
            thlb = {
              tagList(
-               HTML("<h3>Timber Harvesting Land base</h3>"),
-               HTML("<br><h4>Data Table<h4><br>thlb")
+               HTML("<h3>Timber Harvesting Land base</h3><p>An estimate of the number of hectares available for timber harvesting after netting out various harvesting constraints.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>thlb</i></p>")
              )
            },
            ogma={
              tagList(
-               HTML("<h3>Old Growth Management Areas</h3>"),
-               HTML("<br><h4>Technical</h4> <br>"),
-               HTML("<br><h4>Data Table<h4><br>ogma")
+               HTML("<h3>Old Growth Management Areas</h3><p>The number of hectares in old growth management areas (OGMA) that are legally binding and are identified during landscape unit planning or an operational planning process. OGMAs in combination with other areas where forestry development is prevented or constrained, are used to achieve biodiversity targets.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>ogma</i></p>"),
+               HTML(paste0("<h4>Technical</h4><p>A spatial later of current OGMAs can found on ", 
+                    '<a href="https://catalogue.data.gov.bc.ca/dataset/old-growth-management-areas-legal-current" target="_blank">DataBC</a></p>'))
+               
              )
            },
            defer ={
              tagList(
-               HTML("<h3>Old Growth Deferrals</h3>"),
-               HTML("<br><h4>Technical</h4><br>"),
-               HTML("<br><h4>Data Table<h4><br>defer")
+               HTML("<h3>Old Growth Deferrals</h3><p>The number of hectares that are priority areas for deferrals of harvesting in areas of old growth. It combines the Prioritised Big-treed Old Growth (Map 3), Remnant Old Ecosystems (Map 4) and Ancient Forests (Map 5) maps.</p>"),
+               HTML("<h4>Attribute Name</h4><p><i>defer</i></p>"),
+               HTML(paste0("<h4>Technical</h4><p>The data are provided by the Old Growth Technical Advisory Panel and definitions are outlined in the panel’s report. For more information ",
+               '<a href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/old-growth-forests/old-growth-maps" target="_blank">go here</a></p>'))
              )
            }
            )
@@ -395,12 +440,11 @@ app_server <- function( input, output, session ) {
     title = HTML("<h2><b>Terms and Conditions</b></h2>"),
     easyClose = TRUE,
     fade = FALSE,
-    HTML("<h4><b>Conditions for the Release of Fisher Equivalent Territory Areas Data
-B.C. Ministry of Forests, Lands and Natural Resource Operations
-Forest Analysis and Inventory Branch
-</b></h4>
-          The release of Fisher Equivalent Territory Areas Data requires that your agency agrees
-          to the following terms and conditions prior to completing this transaction.
+    HTML("<h4><b>Conditions for the Release of Fisher Equivalent Territory Areas Data</b></h4>
+<h5>B.C. Ministry of Forests, Lands and Natural Resource Operations
+Forest Analysis and Inventory Branch</h5>
+          <p>The release of Fisher Equivalent Territory Areas Data requires that your agency agrees
+          to the following terms and conditions prior to completing this transaction.</p>
           <ol>
           <li>  The data cannot be used for purposes other than those negotiated between the Forest Analysis and Inventory Branch (Branch) and the agency.</li>
           <li>  The data cannot be distributed or sold to a third party or retained by the agency as a proprietary asset.</li>
