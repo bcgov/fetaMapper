@@ -78,7 +78,7 @@ habitat<-data.table(layer2)
 library(data.table)
 library(raster)
 library(sf)
-source(paste0(here::here(), "/R/functions/R_Postgres.R"))
+source("C:/Users/klochhea/clus/R/functions/R_Postgres.R")
 library(fasterize)
 lu<-getSpatialQuery("SELECT wkb_geometry 
 FROM public.rmp_lu_sp_polygon limit 1")
@@ -132,7 +132,7 @@ denning.dry.for<-getTableQuery(
 #BOREAL
 #denning.boreal<- habitat[(((species_cd_1 %in% c( 'ACB') | species_cd_2 %in% c( 'ACB') | species_cd_3 %in% c( 'ACTB')) & proj_age_1 >= 88 & proj_height_1 >= 19 & quad_diam_125 >= 19.5) | ((species_cd_1 %in% c( 'AT') | species_cd_2 %in% c( 'AT') | species_cd_3 %in% c( 'AT')) & proj_age_1 >= 98 & proj_height_1 >= 22.8 & quad_diam_125 >= 21.3)) & ((bec_zone_code == 'BWBS' & bec_subzone %in% c('dk', 'mw', 'wk'))|(bec_zone_code == 'SBS' & bec_subzone == 'wk' & bec_variant == '2')), "feature_id"]
 
-denning.boreal<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) and (PROJ_AGE_1>=88) and (QUAD_DIAM_125>=19.5) and (PROJ_HEIGHT_1>=19)) or (((SPECIES_CD_1 LIKE 'AT%')  or (SPECIES_CD_2 LIKE 'AT%') or ( SPECIES_CD_3 LIKE 'AT%')) and (PROJ_AGE_1>=98) and (QUAD_DIAM_125>=21.3) and (PROJ_HEIGHT_1>=22.8)) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))")
+denning.boreal<-getSpatialQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'AC%'  or SPECIES_CD_2 LIKE 'AC%' or  SPECIES_CD_3 LIKE 'AC%') and PROJ_AGE_1>=88 and QUAD_DIAM_125>=19.5 and PROJ_HEIGHT_1>=19) or ((SPECIES_CD_1 LIKE 'AT%'  or SPECIES_CD_2 LIKE 'AT%' or  SPECIES_CD_3 LIKE 'AT%') and PROJ_AGE_1>=98 and QUAD_DIAM_125>=21.3 and PROJ_HEIGHT_1>=22.8)) AND ((bec_zone_code = 'BWBS' AND bec_subzone IN ('dk', 'mw', 'mk', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'));")
 
 denning<-rbindlist(list(denning.dry.for,denning.sbs.dry, denning.sbs.wet,denning.boreal))
 denning<-unique(denning$feature_id)
@@ -250,20 +250,26 @@ writeRaster(movement.ras, file="movement.tif", format="GTiff", overwrite=TRUE)
 ```{r, hex_grid}
 
 #fisher.density<-getSpatialQuery("select * from fisher_density_2004 where bgc_zone != 'BWBS'  and (bgc_zone != 'SBS' AND bgc_subzon != 'wk' AND bgc_vrt != 2);")
+#Fishers use BWBSdk, BWBSmw, BWBSwk, IDFdk3 &dk4, MSdc, MSdk, MSdm, MSdv, MSxk, MSxv, SBPSdc, SBPSmc, SBPSmk, SBPSxc, SBSdh, SBSdk, SBSdw, SBSmc, SBSmh, SBSmk, SBSmm, SBSmw, SBSwk
+
+fisher.distribution<-getSpatialQuery("select zone, subzone, variant, wkb_geometry from bec_zone where (zone = 'BWBS' and subzone in ('dk','mw','wk', 'mk')) OR (zone = 'ESSF' and subzone in('xv','xcp','xc','mk', 'mc')) OR (zone = 'ICH' and subzone in('mm','dk')) OR (zone = 'IDF' and ((subzone = 'dk' and variant in ('1','2','3','4')) OR (subzone = 'mw' and variant in ('2')) OR (subzone = 'ww'))) OR  (zone = 'MS' and subzone in('dc','dk','dm','dv','xk','xv', 'un')) OR (zone = 'SBS' and subzone in('dh','dk','dw','mc','mh','mk','mm','mw','wk', 'vk', 'un')) OR (zone = 'SBPS' and subzone in('dc','mc','mk','xc')) OR (zone = 'ICH' and subzone = 'mc' and variant in('1','2'))
+                                     OR (zone = 'CWH' and subzone = 'ws' and variant in('1','2'));")
+#st_write(fisher.distribution, "test.shp")
+
 fisher.density<-getSpatialQuery("select * from fisher_density_2004;")
 
-hex.grid<-st_as_sf(st_make_grid(fisher.density, cellsize = 5886, square = FALSE)) #6537 = 35 km2 territory
+hex.grid<-st_as_sf(st_make_grid(fisher.distribution, cellsize = 5886, square = FALSE)) #6537 = 35 km2 territory
 hex.grid$fid<-1:nrow(hex.grid)
-
+#st_write(hex.grid, "hexs.shp")
 #Get the hexagons that intersect with fisher capability high and very high - helps reduce the problem size
-int.hex.dens<-st_intersects(fisher.density[fisher.density$fisher_cap %in% c('very high', 'high', 'med', 'low'),], hex.grid)
+int.hex.dens<-st_intersects(fisher.density[fisher.density$fisher_cap %in% c('very high', 'high', 'med', 'low', 'rare'),], hex.grid)
 
-hex.grid<-hex.grid[hex.grid$fid %in% unique(unlist(int.hex.dens)),]
+hex.grid2<-hex.grid[hex.grid$fid %in% unique(unlist(int.hex.dens)),]
 #View the result
-plot(hex.grid)
+#plot(hex.grid)
 
 #intersect the territories/hexagon and the fisher capability classes
-hex.int.fc<-st_intersection(hex.grid, fisher.density[fisher.density$fisher_cap %in% c('very high', 'high','med', 'low'),])
+hex.int.fc<-st_intersection(hex.grid, fisher.density[fisher.density$fisher_cap %in% c('very high', 'high','med', 'low', 'rare'),])
 hex.int.fc$area<-NULL
 #estimate the area in each newly formed polygon
 hex.int.fc$area<- st_area(hex.int.fc$x)
