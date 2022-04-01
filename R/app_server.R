@@ -271,23 +271,34 @@ app_server <- function( input, output, session ) {
   })
   
   
+  toListen <- reactive({
+    list(input$pop,input$aoi_type)
+  })
   # ... OBSERVE ---- 
-  
-  observeEvent(input$pop, {
+  observeEvent( toListen(), {
+    
     if(!is.null(input$pop)){
       switch(input$pop,
              Boreal = {
                fetaLU <- aoi.boreal
+               if(!is.null(input$aoi_type)){
+                 fetaLU <-fetaLU[aoi_sub ==input$aoi_type, ]
+               }
              },
              Columbian = {
                fetaLU <- aoi.columbia
+               if(!is.null(input$aoi_type)){
+                 fetaLU <-fetaLU[aoi_sub ==input$aoi_type, ]
+               }
              }
       )
-    }
-    updateSelectizeInput(session, "aoi",
-                         choices = as.character(unique(fetaLU$aoi)),
-                         server = TRUE)
+      
+      updateSelectizeInput(session, "aoi",
+                           choices = as.character(unique(fetaLU$aoi)),
+                           server = TRUE)
+      }
   })
+  
   
   output$ui_overview <- renderUI({
     req(input$attribute_def)

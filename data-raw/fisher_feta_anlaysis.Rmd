@@ -488,13 +488,13 @@ fn_columbia<-st_intersects(fn, st_transform(fish.constraints.columbia, 3005))
 names(fn_columbia)<-fn$boundary_name
 fn.columbia<-stack(fn_columbia)
 setnames(fn.columbia, c("values", "ind"), c("fid", "aoi"))
-fn.columbia$aoi_sub<-NA
+fn.columbia$aoi_sub<-'FN'
 
 fn_boreal<-st_intersects(fn, st_transform(fish.constraints.boreal, 3005))
 names(fn_boreal)<-fn$boundary_name
 fn.boreal<-stack(fn_boreal)
 setnames(fn.boreal, c("values", "ind"), c("fid", "aoi"))
-fn.boreal$aoi_sub<-NA
+fn.boreal$aoi_sub<-'FN'
 
 #Get tfl boundary
 tfl<-getSpatialQuery("SeLECT for_fl_id, wkb_geometry from tfl_all_polygon;")
@@ -506,7 +506,7 @@ setnames(tfl.columbia, c("values", "ind"), c("fid", "aoi"))
 #tfl.columbia<-merge(data.table(tfl.columbia),data.table(tfl)[,c("ogc_fid", "for_fl_id")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
 #tfl.columbia<-tfl.columbia[,c("fid", "for_fl_id")]
 #setnames(tfl.columbia, "for_fl_id", "aoi")
-tfl.columbia$aoi_sub<-NA
+tfl.columbia$aoi_sub<-'TFL'
 
 tfl_boreal<-st_intersects(tfl, st_transform(fish.constraints.boreal, 3005))
 names(tfl_boreal)<-tfl$for_fl_id
@@ -516,7 +516,7 @@ setnames(tfl.boreal, c("values", "ind"), c("fid", "aoi"))
 #tfl.boreal<-merge(data.table(tfl.boreal),data.table(tfl)[,c("ogc_fid", "for_fl_id")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
 #tfl.boreal<-tfl.boreal[,c("fid", "for_fl_id")]
 #setnames(tfl.boreal, "for_fl_id", "aoi")
-tfl.boreal$aoi_sub<-NA
+tfl.boreal$aoi_sub<-'TFL'
 
 #Get tsa boundary
 tsa<-getSpatialQuery("SeLECT wkb_geometry, tsnmbrdscr from fadm_tsa_polygon where tsb_number is null;")
@@ -535,7 +535,7 @@ setnames(tsa.columbia, c("values", "ind"), c("fid", "aoi"))
 #tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "Mid-Coast TSA","")	
 #tsa.columbia<-tsa.columbia[,c("fid", "tsnmbrdscr", "test")]
 #setnames(tsa.columbia, c("tsnmbrdscr", "test"), c("aoi", "aoi_sub"))
-tsa.columbia$aoi_sub<-NA
+tsa.columbia$aoi_sub<-'TSA'
 
 tsa_boreal<-st_intersects(tsa, st_transform(fish.constraints.boreal, 3005))
 names(tsa_boreal)<-tsa$tsnmbrdscr
@@ -550,7 +550,7 @@ setnames(tsa.boreal, c("values", "ind"), c("fid", "aoi"))
 #tsa.boreal$test<-stringr::str_replace_all(tsa.boreal$tsbnmbrdsc, tsa.boreal$tsnmbrdscr,"")
 #tsa.boreal<-tsa.boreal[,c("fid", "tsnmbrdscr", "test")]
 #setnames(tsa.boreal, c("tsnmbrdscr", "test"), c("aoi", "aoi_sub"))
-tsa.boreal$aoi_sub<-NA
+tsa.boreal$aoi_sub<-'TSA'
 
 #Nat Districts
 nat_dr<-getSpatialQuery("SeLECT district_n, wkb_geometry from nat_dr;")
@@ -558,13 +558,13 @@ nat_dr_columbia<-st_intersects(nat_dr, st_transform(fish.constraints.columbia, 3
 names(nat_dr_columbia)<-nat_dr$district_n
 nat_dr.columbia<-stack(nat_dr_columbia)
 setnames(nat_dr.columbia, c("values", "ind"), c("fid", "aoi"))
-nat_dr.columbia$aoi_sub<-NA
+nat_dr.columbia$aoi_sub<-'NRD'
 
 nat_dr_boreal<-st_intersects(nat_dr, st_transform(fish.constraints.boreal, 3005))
 names(nat_dr_boreal)<-nat_dr$district_n
 nat_dr.boreal<-stack(nat_dr_boreal)
 setnames(nat_dr.boreal, c("values", "ind"), c("fid", "aoi"))
-nat_dr.boreal$aoi_sub<-NA
+nat_dr.boreal$aoi_sub<-'NRD'
 
 ## Combine into a table per each fisher population
 aoi.boreal<-rbindlist(list(tsa.boreal,tfl.boreal, fn.boreal,nat_dr.boreal))
