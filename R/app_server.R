@@ -39,7 +39,7 @@ app_server <- function( input, output, session ) {
       )
       
       if(!is.null(input$aoi)){
-        fetaPolySf <- fetaPolySf[fetaLU[fetaLU$aoi %in% input$aoi,]$fid,]
+        fetaPolySf <- fetaPolySf[unique(fetaLU[fetaLU$aoi %in% input$aoi,]$fid),]
       }else{
         fetaPolySf
       }
@@ -51,14 +51,14 @@ app_server <- function( input, output, session ) {
   
   #Filter based on habitat selection
   fetaPolyRender <-reactive({
-    fetaPolyAOI() %>% filter(hab_den >= (input$threshold_hab_den/100)*3000 & hab_mov >= (input$threshold_hab_mov/100)*3000 & hab_cav >= (input$threshold_hab_cav/100)*3000 & hab_cwd >= (input$threshold_hab_cwd/100)*3000 & hab_rus >= (input$threshold_hab_rus/100)*3000 & ogma >= input$threshold_ogma & defer >= input$threshold_defer)
+    fetaPolyAOI() %>% filter(p_occ >= input$threshold_p_occ & hab_den >= (input$threshold_hab_den/100)*3000 & hab_mov >= (input$threshold_hab_mov/100)*3000 & hab_cav >= (input$threshold_hab_cav/100)*3000 & hab_cwd >= (input$threshold_hab_cwd/100)*3000 & hab_rus >= (input$threshold_hab_rus/100)*3000 & ogma >= input$threshold_ogma & defer >= input$threshold_defer)
   })
   
   ## render the summary table
   output$fetaSummary<-renderTable({
     summaryTable<-fetaPolyRender() %>% 
                     as.data.frame %>% 
-                    summarise(Total =n(), abund=sum(abund), n_fish= sum(nfish), thlb = sum(thlb)) %>%
+                    summarise(Total =n(), abund=sum(abund, na.rm = T), n_fish= sum(nfish, na.rm = T), thlb = sum(thlb, na.rm = T)) %>%
                     mutate(abund=as.integer(abund), n_fish = as.integer(n_fish), thlb = as.integer(thlb))
     
     colnames(summaryTable) <- c("Total", "Estimated N", "Potential N", "THLB (ha)")
@@ -175,7 +175,7 @@ app_server <- function( input, output, session ) {
   })
   
   output$selectedFisherHabitatThresholds<-renderText({
-    paste0("Denning >",input$threshold_hab_den, "%, Movement >", input$threshold_hab_mov,
+    paste0("Rel. Prob. Occupancy >",input$threshold_p_occ, ", Denning >",input$threshold_hab_den, "%, Movement >", input$threshold_hab_mov,
            "%, Cavity >", input$threshold_hab_cav, "%, Rust >", input$threshold_hab_rus, "% CWD >", input$threshold_hab_cwd, "%")
   })
   
@@ -187,7 +187,7 @@ app_server <- function( input, output, session ) {
     })
   
   output$rsHabitat<-renderTable({
-    data.table(Denning = input$threshold_hab_den, Movement = input$threshold_hab_mov,
+    data.table(p_occ = input$threshold_p_occ, Denning = input$threshold_hab_den, Movement = input$threshold_hab_mov,
                Cavity = input$threshold_hab_cav, Rust= input$threshold_hab_rus, CWD = input$threshold_hab_cwd)
   })
   

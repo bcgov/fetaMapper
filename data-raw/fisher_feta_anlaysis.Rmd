@@ -269,7 +269,7 @@ hex.grid2<-hex.grid[hex.grid$fid %in% unique(unlist(int.hex.dens)),]
 #plot(hex.grid)
 
 #intersect the territories/hexagon and the fisher capability classes
-hex.int.fc<-st_intersection(hex.grid, fisher.density[fisher.density$fisher_cap %in% c('very high', 'high','med', 'low', 'rare'),])
+hex.int.fc<-st_intersection(hex.grid2, fisher.density[fisher.density$fisher_cap %in% c('very high', 'high','med', 'low', 'rare'),])
 hex.int.fc$area<-NULL
 #estimate the area in each newly formed polygon
 hex.int.fc$area<- st_area(hex.int.fc$x)
@@ -303,6 +303,10 @@ out2<-units::drop_units(out[, list(nfish = sum(f_dens),nfishl = sum(f_dens_l), n
 
 # order from highest to lowest
 out3<- out2[,.SD[order(-nfish)]]
+
+#Clear some mem
+rm(movement.boreal, movement.dry.for, movement.sbs.dry, movement.poly, movement.sbs.wet, rest.cavity, rest.cavity.poly, rest.cavity.ras, rest.cavity.sbs.dry, rest.cavity.sbs.wet, rest.cwd, rest.cwd.boreal, rest.cwd.dry.for, rest.cwd.poly, rest.cwd.ras, rest.cwd.sbs.dry, rest.cwd.sbs.wet, rest.rust, rest.rust.boreal, rest.rust.dry.for, rest.rust.poly, rest.rust.ras, rest.rust.sbs.dry, rest.rust.sbs.wet)
+gc()
 
 den.ras<-raster("denning.tif")
 den.ras[is.na(den.ras[])]<-0
@@ -372,13 +376,33 @@ hex.grid$rust_defer_thlb<- exactextractr::exact_extract(rust.overlap.defer.thlb,
 #Add in relative prob of occupancy
 if(FALSE){
    conn<-DBI::dbConnect(dbDriver("PostgreSQL"), host=keyring::key_get('dbhost', keyring = 'postgreSQL'), dbname = keyring::key_get('dbname', keyring = 'postgreSQL'), port='5432' ,user=keyring::key_get('dbuser', keyring = 'postgreSQL') ,password= keyring::key_get('dbpass', keyring = 'postgreSQL'))
-   
-  wtland<-pgGetRast(conn, c('rast','wetland'), boundary =c(1698241, 594552.1,  1525996, 503198.2))
+  
+   perm_Wetland<-getSpatialQuery("SELECT 1 as wetland, shape as geom FROM veg_comp_lyr_r1_poly2020 
+where bclcs_level_1 = 'N' 
+OR (bclcs_level_2 = 'N' and line_7b_disturbance_history Is Null and 
+	(crown_closure < 6 or crown_closure Is Null) and (basal_area < 5 or basal_area Is Null)) 
+OR (bclcs_level_3 = 'W' and (bclcs_level_5='SP' or bclcs_level_5='OP'))")
+  perm_Wetland.ras <-fasterize::fasterize(perm_Wetland, prov.rast, field = "wetland")
+    
+  wetland<-getSpatialQuery("SELECT 1 as wetland, wkb_geometry from perm_wetland")
+  wetland.ras <-fasterize::fasterize(wetland, prov.rast, field = "wetland")
+  
+  ebm_wetland<-getSpatialQuery("SELECT 1 as wetland, wkb_geometry from ebm_wetlnd_polygon")
+  ebm_wetland.ras <-fasterize::fasterize(ebm_wetland, prov.rast, field = "wetland") 
+  
+  ebm_wetland.ras[is.na(ebm_wetland.ras[])]<-0
+  wetland.ras[is.na(wetland.ras[])]<-0
+  #perm_Wetland.ras[is.na(perm_Wetland.ras[])]<-0
+  wtland<-wetland.ras+ebm_wetland.ras
+  
+  wtland[wtland[] > 1]<-1
+  writeRaster(wtland, file="wetland.tif", format="GTiff", overwrite=TRUE)
 }
 ###Get age
 #Harvest locations year
 if(FALSE){
-  layer<-getSpatialQuery("SELECT shape FROM public.veg_comp_lyr_r1_poly2020 where proj_age_1 <= 12 and proj_age_1 >= 0 and bec_zone_code in ('SBS', 'IDF', 'MS', 'SBPS', 'BWBS')")
+  layer<-getSpatialQuery("SELECT shape FROM public.veg_comp_lyr_r1_poly2020 where proj_age_1 <= 12 and proj_age_1 >= 0 and (zone = 'BWBS' and subzone in ('dk','mw','wk', 'mk')) OR (zone = 'ESSF' and subzone in('xv','xcp','xc','mk', 'mc')) OR (zone = 'ICH' and subzone in('mm','dk')) OR (zone = 'IDF' and ((subzone = 'dk' and variant in ('1','2','3','4')) OR (subzone = 'mw' and variant in ('2')) OR (subzone = 'ww'))) OR  (zone = 'MS' and subzone in('dc','dk','dm','dv','xk','xv', 'un')) OR (zone = 'SBS' and subzone in('dh','dk','dw','mc','mh','mk','mm','mw','wk', 'vk', 'un')) OR (zone = 'SBPS' and subzone in('dc','mc','mk','xc')) OR (zone = 'ICH' and subzone = 'mc' and variant in('1','2'))
+                                     OR (zone = 'CWH' and subzone = 'ws' and variant in('1','2'));")
   layer$openess<-1
   openess.ras <-fasterize::fasterize(layer, prov.rast, field = "openess")
   openess.ras[is.na(openess.ras[])]<-0
@@ -387,6 +411,7 @@ if(FALSE){
 openess.ras<-raster("openess.tif")
 wetlands.ras<-raster("wetland.tif")
 wetlands.ras[is.na(wetlands.ras[])]<-0
+openess.ras[is.na(openess.ras[])]<-0
 openess.ras2<- openess.ras + wetlands.ras
 openess.ras2[openess.ras2[]> 1]<-1
 
@@ -405,7 +430,7 @@ hab_crit[is.na(thlb), thlb:=0]
 hab_crit[is.na(ogma), ogma:=0]
 hab_crit[is.na(defer), defer:=0]
 
-out4<-merge(out3, hab_crit, by.x = 'fid', by.y = 'fid', all.x = TRUE)
+out4<-merge( hab_crit,out3, by.x = 'fid', by.y = 'fid', all.x = TRUE)
 
 #out4$hab_chr<-as.integer(out4$hab_chr)
 out4$nfish<-round(out4$nfish, 4)
@@ -419,45 +444,41 @@ sum(out4$abund)
 
 #keycol <-c("n_fish", "hab_chr","p_occ")
 #setorderv(out4, keycol, order=c(-1,-1,-1))
-fish.constraints0<-merge(out4, hex.grid[1:2], by.x = 'fid', by.y = 'fid', all.x = TRUE)
-fish.constraints0<-st_as_sf(fish.constraints0)
-st_write(fish.constraints0, "feta_v0.shp", overwrite= T)
+hex.fish.dens<-st_intersects(fisher.distribution, hex.grid)
+
+fish.constraints0<-merge( hex.grid[1:2],out4, by.x = 'fid', by.y = 'fid', all.x = TRUE)
+test<-unique(unlist(hex.fish.dens))
+fish.constraints1<-fish.constraints0[test,]
+fish.constraints1<-st_as_sf(fish.constraints1)
+st_write(fish.constraints1, "feta_v0.shp", overwrite= T)
 ```
 
 ##### summaries by different boundaries
 ```{r, admin_bounds}
-fish.constraints0<-sf::st_read("feta_v0.shp")
+fish.constraints1<-sf::st_read("feta_v0.shp")
+#fish.constraints1[nfish >= 0.43,cap:= "vh"][nfish >= 0.3 & nfish < 0.43, cap:= "h"][nfish >= 0.18 & nfish < 0.3, cap:="m"][nfish >= 0.07 & nfish < 0.18, cap:= "l"][nfish < 0.07, cap:="r"]
+fish.constraints1$n_feta<-1
 
 #get hab zones
 hab.units<-getSpatialQuery("select * from fisher_ci_boreal_units_fine")
-boreal<-unique(unlist(st_intersects(hab.units[hab.units$pop_unit == 'Boreal',], fish.constraints0)))
-columbia<-unique(unlist(st_intersects(hab.units[!hab.units$pop_unit == 'Boreal',],fish.constraints0)))
+boreal<-unique(unlist(st_intersects(hab.units[hab.units$pop_unit == 'Boreal',], fish.constraints1)))
+#columbia<-unique(unlist(st_intersects(hab.units[!hab.units$pop_unit == 'Boreal',],fish.constraints1)))
+#fish.constraints.boreal<-fish.constraints1[boreal,]
+#fish.constraints.columbia<-fish.constraints1[columbia,]
 
-fish.constraints1<-fish.constraints0
+#need to add some to boreal and take away from columbia
+leftovers<-sf::st_read("left_overs.shp")
+boreal2<-unique(unlist(st_intersects(leftovers, fish.constraints1)))
+boreal<-c(boreal , boreal2)
 
-fish.constraints.boreal<-fish.constraints0[boreal,]
-fish.constraints.columbia<-fish.constraints0[columbia,]
-    
-  
-
-fish.constraints1[nfish >= 0.43,cap:= "vh"][nfish >= 0.3 & nfish < 0.43, cap:= "h"][nfish >= 0.18 & nfish < 0.3, cap:="m"][nfish >= 0.07 & nfish < 0.18, cap:= "l"][nfish < 0.07, cap:="r"]
-
-fish.constraints1[ogma > 0, og_feta:=1]
-fish.constraints1[defer > 0, og_defer:=1]
-
-fish.constraints1$nfish_cat<-round(fish.constraints1$nfish,2)
-fish.constraints1$geometry <- NULL
+columbia <- 1:18704
+columbia<-columbia[!(columbia %in% boreal)]
 
 fish.constraints.boreal<-fish.constraints1[boreal,]
-fish.constraints.boreal$n_feta<-1
 fish.constraints.columbia<-fish.constraints1[columbia,]
-fish.constraints.columbia$n_feta<-1
 
-c_table<-fish.constraints.columbia[, sum(), by = nfish_cat]
-write.csv(c_table, "ctable.csv")
-b_table<-fish.constraints.boreal[, lapply(.SD, sum, na.rm=TRUE), by = nfish_cat]
-write.csv(b_table, "btable.csv")
-
+st_write(fish.constraints.columbia, "test_columbia.shp", overwrite= T)
+st_write(fish.constraints.boreal, "test_boreal.shp", overwrite= T)
 ```
 
 #### AOI summaries
@@ -476,64 +497,79 @@ setnames(fn.boreal, c("values", "ind"), c("fid", "aoi"))
 fn.boreal$aoi_sub<-NA
 
 #Get tfl boundary
-tfl<-getSpatialQuery("SeLECT * from tfl_all_polygon")
+tfl<-getSpatialQuery("SeLECT for_fl_id, wkb_geometry from tfl_all_polygon;")
 tfl_columbia<-st_intersects(tfl, st_transform(fish.constraints.columbia, 3005))
-names(tfl_columbia)<-tfl$ogc_fid
+names(tfl_columbia)<-tfl$for_fl_id
 tfl.columbia<-stack(tfl_columbia)
-setnames(tfl.columbia, c("values", "ind"), c("fid", "ogc_fid"))
-tfl.columbia$ogc_fid<-as.integer(tfl.columbia$ogc_fid)
-tfl.columbia<-merge(data.table(tfl.columbia),data.table(tfl)[,c("ogc_fid", "for_fl_id")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
-tfl.columbia<-tfl.columbia[,c("fid", "for_fl_id")]
-setnames(tfl.columbia, "for_fl_id", "aoi")
+setnames(tfl.columbia, c("values", "ind"), c("fid", "aoi"))
+#tfl.columbia$ogc_fid<-as.integer(tfl.columbia$ogc_fid)
+#tfl.columbia<-merge(data.table(tfl.columbia),data.table(tfl)[,c("ogc_fid", "for_fl_id")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
+#tfl.columbia<-tfl.columbia[,c("fid", "for_fl_id")]
+#setnames(tfl.columbia, "for_fl_id", "aoi")
 tfl.columbia$aoi_sub<-NA
 
 tfl_boreal<-st_intersects(tfl, st_transform(fish.constraints.boreal, 3005))
-names(tfl_boreal)<-tfl$ogc_fid
+names(tfl_boreal)<-tfl$for_fl_id
 tfl.boreal<-stack(tfl_boreal)
-setnames(tfl.boreal, c("values", "ind"), c("fid", "ogc_fid"))
-tfl.boreal$ogc_fid<-as.integer(tfl.boreal$ogc_fid)
-tfl.boreal<-merge(data.table(tfl.boreal),data.table(tfl)[,c("ogc_fid", "for_fl_id")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
-tfl.boreal<-tfl.boreal[,c("fid", "for_fl_id")]
-setnames(tfl.boreal, "for_fl_id", "aoi")
+setnames(tfl.boreal, c("values", "ind"), c("fid", "aoi"))
+#tfl.boreal$ogc_fid<-as.integer(tfl.boreal$ogc_fid)
+#tfl.boreal<-merge(data.table(tfl.boreal),data.table(tfl)[,c("ogc_fid", "for_fl_id")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
+#tfl.boreal<-tfl.boreal[,c("fid", "for_fl_id")]
+#setnames(tfl.boreal, "for_fl_id", "aoi")
 tfl.boreal$aoi_sub<-NA
 
 #Get tsa boundary
-tsa<-getSpatialQuery("SeLECT * from fadm_tsa_polygon")
+tsa<-getSpatialQuery("SeLECT wkb_geometry, tsnmbrdscr from fadm_tsa_polygon where tsb_number is null;")
 tsa_columbia<-st_intersects(tsa, st_transform(fish.constraints.columbia, 3005))
-names(tsa_columbia)<-tsa$ogc_fid
+names(tsa_columbia)<-tsa$tsnmbrdscr
 tsa.columbia<-stack(tsa_columbia)
-setnames(tsa.columbia, c("values", "ind"), c("fid", "ogc_fid"))
-tsa.columbia$ogc_fid<-as.integer(tsa.columbia$ogc_fid)
-tsa.columbia<-merge(data.table(tsa.columbia),data.table(tsa)[,c("ogc_fid", "tsnmbrdscr","tsbnmbrdsc")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
-tsa.columbia<-tsa.columbia[!is.na(tsa.columbia$tsbnmbrdsc),]
+setnames(tsa.columbia, c("values", "ind"), c("fid", "aoi"))
+#tsa.columbia$ogc_fid<-as.integer(tsa.columbia$ogc_fid)
+#tsa.columbia<-merge(data.table(tsa.columbia),data.table(tsa)[,c("ogc_fid", "tsnmbrdscr","tsbnmbrdsc")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
+#tsa.columbia<-tsa.columbia[!is.na(tsa.columbia$tsbnmbrdsc),]
 #fix a few of the tsa
-tsa.columbia$tsbnmbrdsc<-stringr::str_replace_all(tsa.columbia$tsbnmbrdsc, "Fort St John TSA","Fort St. John TSA")
-tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$tsbnmbrdsc, tsa.columbia$tsnmbrdscr,"")
-tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "Wms Lk TSA","")
-tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "100 Mile House","")
-tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "Mid-Coast TSA","")	
-tsa.columbia<-tsa.columbia[,c("fid", "tsnmbrdscr", "test")]
-setnames(tsa.columbia, c("tsnmbrdscr", "test"), c("aoi", "aoi_sub"))
+#tsa.columbia$tsbnmbrdsc<-stringr::str_replace_all(tsa.columbia$tsbnmbrdsc, "Fort St John TSA","Fort St. John TSA")
+#tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$tsbnmbrdsc, tsa.columbia$tsnmbrdscr,"")
+#tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "Wms Lk TSA","")
+#tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "100 Mile House","")
+#tsa.columbia$test<-stringr::str_replace_all(tsa.columbia$test, "Mid-Coast TSA","")	
+#tsa.columbia<-tsa.columbia[,c("fid", "tsnmbrdscr", "test")]
+#setnames(tsa.columbia, c("tsnmbrdscr", "test"), c("aoi", "aoi_sub"))
+tsa.columbia$aoi_sub<-NA
 
 tsa_boreal<-st_intersects(tsa, st_transform(fish.constraints.boreal, 3005))
-names(tsa_boreal)<-tsa$ogc_fid
+names(tsa_boreal)<-tsa$tsnmbrdscr
 tsa.boreal<-stack(tsa_boreal)
-setnames(tsa.boreal, c("values", "ind"), c("fid", "ogc_fid"))
-tsa.boreal$ogc_fid<-as.integer(tsa.boreal$ogc_fid)
-tsa.boreal<-merge(data.table(tsa.boreal),data.table(tsa)[,c("ogc_fid", "tsnmbrdscr","tsbnmbrdsc")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
+setnames(tsa.boreal, c("values", "ind"), c("fid", "aoi"))
+#tsa.boreal$ogc_fid<-as.integer(tsa.boreal$ogc_fid)
+#tsa.boreal<-merge(data.table(tsa.boreal),data.table(tsa)[,c("ogc_fid", "tsnmbrdscr","tsbnmbrdsc")], by.x = "ogc_fid", by.y = "ogc_fid", all.x =T)
 
-tsa.boreal<-tsa.boreal[!is.na(tsa.boreal$tsbnmbrdsc),]
+#tsa.boreal<-tsa.boreal[!is.na(tsa.boreal$tsbnmbrdsc),]
 #fix a few of the tsa
-tsa.boreal$tsbnmbrdsc<-stringr::str_replace_all(tsa.boreal$tsbnmbrdsc, "Fort St John TSA","Fort St. John TSA")
-tsa.boreal$test<-stringr::str_replace_all(tsa.boreal$tsbnmbrdsc, tsa.boreal$tsnmbrdscr,"")
-tsa.boreal<-tsa.boreal[,c("fid", "tsnmbrdscr", "test")]
-setnames(tsa.boreal, c("tsnmbrdscr", "test"), c("aoi", "aoi_sub"))
+#tsa.boreal$tsbnmbrdsc<-stringr::str_replace_all(tsa.boreal$tsbnmbrdsc, "Fort St John TSA","Fort St. John TSA")
+#tsa.boreal$test<-stringr::str_replace_all(tsa.boreal$tsbnmbrdsc, tsa.boreal$tsnmbrdscr,"")
+#tsa.boreal<-tsa.boreal[,c("fid", "tsnmbrdscr", "test")]
+#setnames(tsa.boreal, c("tsnmbrdscr", "test"), c("aoi", "aoi_sub"))
+tsa.boreal$aoi_sub<-NA
+
+#Nat Districts
+nat_dr<-getSpatialQuery("SeLECT district_n, wkb_geometry from nat_dr;")
+nat_dr_columbia<-st_intersects(nat_dr, st_transform(fish.constraints.columbia, 3005))
+names(nat_dr_columbia)<-nat_dr$district_n
+nat_dr.columbia<-stack(nat_dr_columbia)
+setnames(nat_dr.columbia, c("values", "ind"), c("fid", "aoi"))
+nat_dr.columbia$aoi_sub<-NA
+
+nat_dr_boreal<-st_intersects(nat_dr, st_transform(fish.constraints.boreal, 3005))
+names(nat_dr_boreal)<-nat_dr$district_n
+nat_dr.boreal<-stack(nat_dr_boreal)
+setnames(nat_dr.boreal, c("values", "ind"), c("fid", "aoi"))
+nat_dr.boreal$aoi_sub<-NA
 
 ## Combine into a table per each fisher population
-
-aoi.boreal<-rbindlist(list(tsa.boreal,tfl.boreal, fn.boreal))
+aoi.boreal<-rbindlist(list(tsa.boreal,tfl.boreal, fn.boreal,nat_dr.boreal))
 usethis::use_data(aoi.boreal)
-aoi.columbia<-rbindlist(list(tsa.columbia,tfl.columbia, fn.columbia))
+aoi.columbia<-rbindlist(list(tsa.columbia,tfl.columbia, fn.columbia,nat_dr.columbia))
 usethis::use_data(aoi.columbia)
 fish.constraints.boreal<-st_transform(fish.constraints.boreal, 4326)
 usethis::use_data(fish.constraints.boreal)

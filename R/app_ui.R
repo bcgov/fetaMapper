@@ -19,7 +19,7 @@
 
 app_ui <- function(request) {
   
-  attr_choices<-list("abund","abund_pot", "nfish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
+  attr_choices<-list("abund","abnd_pt", "nfish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
   names(attr_choices)<-c("Estimated Abundance (N)", "Potential Abundance (N)", "Density", "Relative Probability Occupancy", "Denning", "Movement", "Resting Rust", "Resting CWD", "Resting Cavity", "THLB", "OGMA", "Old Growth Deferral")
   
   tagList(
@@ -73,7 +73,9 @@ app_ui <- function(request) {
                            ),
                            selectInput("colorFilt", "Select an attribute to map", choices = attr_choices
                            ),
-        
+                           conditionalPanel("input.colorFilt == 'p_occ'",
+                                            sliderInput("threshold_p_occ", "Rel. Prob. Occupancy", 0, 1, 0, step= 0.05)
+                           ),
                            conditionalPanel("input.colorFilt == 'hab_den'",
                             sliderInput("threshold_hab_den", "Denning habitat (%)", 0, 20, 0, step= 0.1)
                           ),
