@@ -66,7 +66,7 @@ app_ui <- function(request) {
                                  "Select a population, area of interest and attribute to map",
                                  "right"
                                )),
-                           radioButtons(inputId = "pop", label="Select a fisher population", choices =c("Boreal", "Columbia"), inline =T, selected = character(0)),
+                           radioButtons(inputId = "pop", label="Select a fisher population", choices =c("Boreal", "Columbian"), inline =T, selected = character(0)),
                            selectizeInput(inputId ="aoi", label="Select an area of interest", choices = "All",
                              selected = NULL, multiple = TRUE, 
                              options = list('plugins' = list('remove_button'), placeholder = 'All', 'persist' = F)

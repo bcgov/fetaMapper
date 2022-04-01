@@ -32,7 +32,7 @@ app_server <- function( input, output, session ) {
           fetaPolySf <- fish.constraints.boreal 
           fetaLU <- aoi.boreal
         },
-        Columbia = {
+        Columbian = {
           fetaPolySf <- fish.constraints.columbia
           fetaLU <- aoi.columbia
         }
@@ -279,7 +279,7 @@ app_server <- function( input, output, session ) {
              Boreal = {
                fetaLU <- aoi.boreal
              },
-             Columbia = {
+             Columbian = {
                fetaLU <- aoi.columbia
              }
       )
