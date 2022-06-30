@@ -21,8 +21,8 @@ app_server <- function( input, output, session ) {
 
   #Reactive to store click on feta information
   fetaInfo <- reactiveVal()
-  fetaInfo(data.table::data.table(Attribute =c("FID", "Denning", "Movement", "Cavity", "Rust", "CWD", "THLB", "OGMA", "Deferral"),
-                                  Value = c(0,0,0,0,0,0,0,0,0)))
+  fetaInfo(data.table::data.table(Attribute =c("FID", "Denning", "Movement", "Cavity", "Rust", "CWD", "d2", "THLB", "OGMA", "Deferral"),
+                                  Value = c(0,0,0,0,0,0,0,0,0,0)))
 
   fetaPolyAOI <-reactive({
     req(input$pop)
@@ -51,7 +51,7 @@ app_server <- function( input, output, session ) {
   
   #Filter based on habitat selection
   fetaPolyRender <-reactive({
-    fetaPolyAOI() %>% filter(p_occ >= input$threshold_p_occ & hab_den >= (input$threshold_hab_den/100)*3000 & hab_mov >= (input$threshold_hab_mov/100)*3000 & hab_cav >= (input$threshold_hab_cav/100)*3000 & hab_cwd >= (input$threshold_hab_cwd/100)*3000 & hab_rus >= (input$threshold_hab_rus/100)*3000 & ogma >= input$threshold_ogma & defer >= input$threshold_defer)
+    fetaPolyAOI() %>% filter(p_occ >= input$threshold_p_occ & d2 <= input$threshold_d2 & hab_den >= (input$threshold_hab_den/100)*3000 & hab_mov >= (input$threshold_hab_mov/100)*3000 & hab_cav >= (input$threshold_hab_cav/100)*3000 & hab_cwd >= (input$threshold_hab_cwd/100)*3000 & hab_rus >= (input$threshold_hab_rus/100)*3000 & ogma >= input$threshold_ogma & defer >= input$threshold_defer)
   })
   
   ## render the summary table
@@ -159,7 +159,7 @@ app_server <- function( input, output, session ) {
  
   output$fetaData<-DT::renderDataTable({
     a<-st_drop_geometry(fetaPolyRender()) %>%
-      select(fid, abund, nfish, hab_den, hab_mov, hab_cav, hab_rus, hab_cwd, ogma, defer) %>%
+      select(fid, abund, nfish, d2, hab_den, hab_mov, hab_cav, hab_rus, hab_cwd) %>%
       mutate(abund =round(abund, 4))
     DT::datatable(a, 
                   caption = 'FETAs to be exported (omitting some of columns)',
@@ -176,7 +176,7 @@ app_server <- function( input, output, session ) {
   
   output$selectedFisherHabitatThresholds<-renderText({
     paste0("Rel. Prob. Occupancy >",input$threshold_p_occ, ", Denning >",input$threshold_hab_den, "%, Movement >", input$threshold_hab_mov,
-           "%, Cavity >", input$threshold_hab_cav, "%, Rust >", input$threshold_hab_rus, "% CWD >", input$threshold_hab_cwd, "%")
+           "%, Cavity >", input$threshold_hab_cav, "%, Rust >", input$threshold_hab_rus, "%, CWD >", input$threshold_hab_cwd, "%, d2 <", input$threshold_d2)
   })
   
   output$aoiSelected<-renderText({
@@ -187,8 +187,8 @@ app_server <- function( input, output, session ) {
     })
   
   output$rsHabitat<-renderTable({
-    data.table(p_occ = input$threshold_p_occ, Denning = input$threshold_hab_den, Movement = input$threshold_hab_mov,
-               Cavity = input$threshold_hab_cav, Rust= input$threshold_hab_rus, CWD = input$threshold_hab_cwd)
+    data.table(p_occ = input$threshold_p_occ, den = input$threshold_hab_den, mov = input$threshold_hab_mov,
+               cav = input$threshold_hab_cav, rus= input$threshold_hab_rus, cwd = input$threshold_hab_cwd, d2 = input$threshold_d2)
   })
   
   output$rsOldGrowth<-renderTable({
@@ -238,10 +238,10 @@ app_server <- function( input, output, session ) {
   # store the click
   observeEvent(input$map_geojson_click, {
    
-    fetaInfo( data.table::data.table(Attribute =c("fid",  "denning", "movement", "cavity", "rust", "cwd","thlb", "ogma", "defer"),
+    fetaInfo( data.table::data.table(Attribute =c("fid",  "denning", "movement", "cavity", "rust", "cwd","d2", "thlb", "ogma", "defer"),
                                      Value = c(as.integer(input$map_geojson_click$properties$fid),input$map_geojson_click$properties$hab_den,
                                                input$map_geojson_click$properties$hab_mov, input$map_geojson_click$properties$hab_cav, 
-                                               input$map_geojson_click$properties$hab_rus, input$map_geojson_click$properties$hab_cwd,
+                                               input$map_geojson_click$properties$hab_rus, input$map_geojson_click$properties$hab_cwd,input$map_geojson_click$properties$d2,
                                                input$map_geojson_click$properties$thlb,input$map_geojson_click$properties$ogma, 
                                                input$map_geojson_click$properties$defer))
     )
@@ -251,6 +251,11 @@ app_server <- function( input, output, session ) {
   observe( { 
     req(input$pop)
     req(input$colorFilt)
+    if(input$colorFilt == "d2"){
+      scaletype = c("blue", "white")
+    }else{
+      scaletype = c("white", "blue")
+    }
     
     bbox<-st_bbox(fetaPolyRender())
     leafletProxy('map')  %>% 
@@ -259,7 +264,7 @@ app_server <- function( input, output, session ) {
       addGeoJSONChoropleth(
         geojsonsf::sf_geojson(fetaPolyRender()), group = 'FETA', layerId = "fid",
         valueProperty = input$colorFilt,
-        scale = c("white", "blue"),
+        scale = scaletype,
         color = "#ffffff", weight = 1, fillOpacity = 0.5,
         highlightOptions = highlightOptions(
           weight = 2, color = "#000000",
@@ -416,6 +421,14 @@ app_server <- function( input, output, session ) {
                " was used to estimate this forest structure. The following queries are used to select cavity habitat within the VRI:<br>
              <li><b>SBS wet:</b> ((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or ( SPECIES_CD_3 LIKE 'A%')) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=30) and (BASAL_AREA>=32) and (PROJ_HEIGHT_1>=35) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw') <br>
              <li><b>SBS dry:</b> (((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or (SPECIES_CD_3 LIKE 'A%')) and PROJ_HEIGHT_1>=35 and BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk') <br>")),
+               
+             )
+           },
+           d2={
+             tagList(
+               HTML("<h3>Mahalanobis Distance (d2)</h3><p>Mahalanobis distance is a quadratic distance metric that measures how far in variable space a FETA is from observed fisher territories </p>"),
+               HTML("<h4>Attribute Name</h4><p><i>d2</i></p>"),
+               HTML(paste0("<h4>Technical</h4><p> The habitat categories: denning, resting rust, resting cwd, cavity and movement were used to define the variable space.")),
                
              )
            },

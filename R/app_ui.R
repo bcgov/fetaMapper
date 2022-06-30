@@ -19,8 +19,8 @@
 
 app_ui <- function(request) {
   
-  attr_choices<-list("abund","abnd_pt", "nfish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "thlb", "ogma", "defer")
-  names(attr_choices)<-c("Estimated Abundance (N)", "Potential Abundance (N)", "Density", "Relative Probability Occupancy", "Denning", "Movement", "Resting Rust", "Resting CWD", "Resting Cavity", "THLB", "OGMA", "Old Growth Deferral")
+  attr_choices<-list("abund","abnd_pt", "nfish","p_occ", "hab_den", "hab_mov", "hab_rus", "hab_cwd", "hab_cav", "d2", "thlb", "ogma", "defer")
+  names(attr_choices)<-c("Estimated Abundance (N)", "Potential Abundance (N)", "Density", "Relative Probability Occupancy", "Denning", "Movement", "Resting Rust", "Resting CWD", "Resting Cavity", "Mahalanobis (d2)", "THLB", "OGMA", "Old Growth Deferral")
   
   tagList(
     # Leave this function for adding external resources
@@ -98,6 +98,9 @@ app_ui <- function(request) {
                           conditionalPanel("input.colorFilt == 'defer'",
                                            sliderInput("threshold_defer", "Old growth deferral (ha)", 0, 1000, 0, step= 10)
                           ),
+                          conditionalPanel("input.colorFilt == 'd2'",
+                                           sliderInput("threshold_d2", "Mahalanobis (d2)", 0, 2500, 2500, step= 1)
+                          ),
                           div(textOutput("selectedFisherHabitatThresholds") %>%
                                 bsplus::bs_embed_tooltip(
                                   "Selected thresholds of fisher habitat"
@@ -107,7 +110,7 @@ app_ui <- function(request) {
                           div(h4("FETA Summary"),
                               icon('info-circle') %>%
                                 bsplus::bs_embed_tooltip(
-                                  "Total = count of fetas selected; Est. N = estimated abundance; Pot. N = Potential abundance; THLB = timber harvesting landbase",
+                                  "Total = count of fetas selected; Est. N = estimated abundance; d2 = Mahalanobis Distance; Pot. N = Potential abundance; THLB = timber harvesting landbase",
                                   "right"
                                 )),
                           tableOutput("fetaSummary"),

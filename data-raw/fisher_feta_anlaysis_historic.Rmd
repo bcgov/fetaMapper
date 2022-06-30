@@ -1,0 +1,283 @@
+---
+title: "fisher_constraints"
+author: "Kyle"
+date: "01/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(raster)
+library(sf)
+library(fasterize)
+source("C:/Users/klochhea/clus/R/functions/R_Postgres.R")
+#Get a provincial raster that follows the extent standard
+prov.rast <- raster::raster(
+  nrows = 15744, ncols = 17216, xmn = 159587.5, xmx = 1881187.5, ymn = 173787.5, ymx = 1748187.5, 
+  crs = st_crs(getSpatialQuery("Select * from bc_carib_poly_20090904 limit 1"))$proj4string, resolution = c(100, 100), vals = 0)
+```
+
+## Purpose
+
+To characterize historical fisher habitat defined according to the habitat categories found [here](https://www.bcfisherhabitat.ca/habitat-tools/) and referenced to the year 2003. The [vegetation resources inventory](https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory) was used to characterize historical forest attributes that define the habitat categories
+
+**VRI 2003**
+Note that not all forest attributes (e.g., crown closure) were projected to the year 2003 or 2020.
+
+Comparing across two vintages of VRI is likely to produce issues given some areas in the older (VRI 2003) inventory could have NULL or missing information. Thus, any differences between the two inventorys would be due to missing information rather than habitat change. To workaround this issue, the forest attribution from VRI 2020 was assumed to occur in 2003 with the exception of PROJ_AGE_1. This means that 17 years was added to the PROJ_AGE_1 field in VRI 2020 to account for the 17 year difference between the 2003 and 2020 VRI. The fisher habitat categories that do not use PROJ_AGE_1 (namely Resting Cavity) relied soley on differences between 2003 and 2020 VRI.
+
+#### Fisher forest attributes
+1. Create a look up table for each vintage of the vri (e.g., 2003, 2020)
+```{r, fsher_veg_comp2019, echo = FALSE}
+library(data.table)
+library(raster)
+library(sf)
+source("C:/Users/klochhea/clus/R/functions/R_Postgres.R")
+library(fasterize)
+
+#Harvest locations year
+layer<-getSpatialQuery("SELECT feature_id, geometry FROM public.veg_comp_lyr_r1_poly2003 where bec_zone_code in ('SBS', 'IDF', 'MS', 'SBPS', 'BWBS') ")
+layer2020<-getSpatialQuery("SELECT feature_id, shape FROM public.veg_comp_lyr_r1_poly2020 where bec_zone_code in ('SBS', 'IDF', 'MS', 'SBPS', 'BWBS') ")
+layer2<-layer
+layer2$shape<-NULL #get rid of geometry
+habitat<-data.table(layer2)
+
+lu<-getSpatialQuery("SELECT wkb_geometry 
+FROM public.rmp_lu_sp_polygon limit 1")
+
+ProvRast <- raster(
+  nrows = 15744, ncols = 17216, xmn = 159587.5, xmx = 1881187.5, ymn = 173787.5, ymx = 1748187.5, 
+  crs = st_crs(lu)$proj4string, resolution = c(100, 100), vals = 0
+)
+```
+
+##### Denning
+The following queries specify the forest structure needed for fisher to create dens
+```{r, denning}
+#SBS: WET
+#denning.sbs.wet<- habitat[(species_cd_1 %in% c( 'ACT') | species_cd_2 %in% c( 'ACT') | (species_cd_1 %in% c('SX') & species_pct_1 == 100)) & crown_closure >= 30 & quad_diam_125 >= 28.5 & basal_area >= 29.7 & proj_age_1 >= 125 & bec_zone_code == 'SBS' & bec_subzone %in% c('wk','mk','mm','mw'), "feature_id"]
+
+denning.sbs.wet<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) or ((SPECIES_CD_1 LIKE 'S%') and (SPECIES_CD_2 IS NULL))) and (PROJ_AGE_1>=125) and (CROWN_CLOSURE>=30) and (QUAD_DIAM_125>=28.5) and (BASAL_AREA>=29.75) and (bec_zone_code = 'SBS') and (bec_subzone in('wk','mk','mm','mw'))")
+
+denning.sbs.wet2020<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) or ((SPECIES_CD_1 LIKE 'S%') and (SPECIES_CD_2 IS NULL))) and (PROJ_AGE_1>=142) and (CROWN_CLOSURE>=30) and (QUAD_DIAM_125>=28.5) and (BASAL_AREA>=29.75) and (bec_zone_code = 'SBS') and (bec_subzone in('wk','mk','mm','mw'))")
+
+#SBS DRY: Act leading, secondary, or tertiary species (or hybrid spruce (Sx) as only species) Crown closure ≥20% QMD_125 ≥28 cm Basal area ≥28 m²/ha Stand age ≥125 years 
+#denning.sbs.dry<- habitat[(species_cd_1 %in% c( 'ACT') | species_cd_2 %in% c( 'ACT') | (species_cd_1 %in% c('SX') & species_pct_1 == 100)) & crown_closure >= 20 & quad_diam_125 >= 28 & basal_area >= 28 & proj_age_1 >= 125 & bec_zone_code == 'SBS' & bec_subzone %in% c('dw','dh','dk'), "feature_id"]
+
+denning.sbs.dry<- getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) or ((SPECIES_CD_1 LIKE 'S%') and (SPECIES_CD_2 IS NULL))) and (PROJ_AGE_1>=125) and (CROWN_CLOSURE>=20) and (QUAD_DIAM_125>=28) and (BASAL_AREA>=28) and (bec_zone_code = 'SBS') and (bec_subzone in ('dw','dh','dk'))")
+
+denning.sbs.dry2020<- getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'AC%')  or (SPECIES_CD_2 LIKE 'AC%') or ( SPECIES_CD_3 LIKE 'AC%')) or ((SPECIES_CD_1 LIKE 'S%') and (SPECIES_CD_2 IS NULL))) and (PROJ_AGE_1>=142) and (CROWN_CLOSURE>=20) and (QUAD_DIAM_125>=28) and (BASAL_AREA>=28) and (bec_zone_code = 'SBS') and (bec_subzone in ('dw','dh','dk'))")
+
+#DRY FOREST: cottonwood (Act) denning stands:Act leading or secondary species.Stand age ≥135 years 
+#Trembling aspen (At) denning stands:At leading or secondary species Stand age ≥135 years
+#Douglas-fir (Fd) denning stands:Fd as only species, Crown closure ≥20% QMD_125 ≥34.3 cm, Stand age ≥207 years
+#denning.dry.for<- habitat[((species_cd_1 %in% c( 'ACT') | species_cd_2 %in% c( 'ACT') & proj_age_1 >= 135) | (species_cd_1 %in% c( 'AT') | species_cd_2 %in% c( 'AT') & proj_age_1 >= 135)| ((species_cd_1 %in% c('FDI', 'FD') & species_pct_1 == 100) & proj_age_1 >= 207 & crown_closure >= 20 & quad_diam_125 >= 34.3)) & ((bec_zone_code == 'SBPS' & bec_subzone %in% c('xc','mc','dc','mk')) | (bec_zone_code == 'IDF' & bec_subzone %in% c('dk','dc','mw','dw','ww')) | (bec_zone_code == 'MS' & bec_subzone %in% c('xc','xk','dv','dm', 'dk', 'dc'))), "feature_id"]
+
+denning.dry.for<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2003 where (((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%')) and PROJ_AGE_1>=135) or (((SPECIES_CD_1 LIKE 'F%') and (SPECIES_CD_2  IS NULL)) and PROJ_AGE_1>=207 and CROWN_CLOSURE>=20 and QUAD_DIAM_125>=34.3) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+
+denning.dry.for2020<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%')) and PROJ_AGE_1>=152) or (((SPECIES_CD_1 LIKE 'F%') and (SPECIES_CD_2  IS NULL)) and PROJ_AGE_1>=224 and CROWN_CLOSURE>=20 and QUAD_DIAM_125>=34.3) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+
+#BOREAL
+#denning.boreal<- habitat[(((species_cd_1 %in% c( 'ACB') | species_cd_2 %in% c( 'ACB') | species_cd_3 %in% c( 'ACTB')) & proj_age_1 >= 88 & proj_height_1 >= 19 & quad_diam_125 >= 19.5) | ((species_cd_1 %in% c( 'AT') | species_cd_2 %in% c( 'AT') | species_cd_3 %in% c( 'AT')) & proj_age_1 >= 98 & proj_height_1 >= 22.8 & quad_diam_125 >= 21.3)) & ((bec_zone_code == 'BWBS' & bec_subzone %in% c('dk', 'mw', 'wk'))|(bec_zone_code == 'SBS' & bec_subzone == 'wk' & bec_variant == '2')), "feature_id"]
+
+denning.boreal<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where (((SPECIES_CD_1 LIKE 'AC%'  or SPECIES_CD_2 LIKE 'AC%' or  SPECIES_CD_3 LIKE 'AC%') and PROJ_AGE_1>=88 and QUAD_DIAM_125>=19.5 and PROJ_HEIGHT_1>=19) or ((SPECIES_CD_1 LIKE 'AT%'  or SPECIES_CD_2 LIKE 'AT%' or  SPECIES_CD_3 LIKE 'AT%') and PROJ_AGE_1>=98 and QUAD_DIAM_125>=21.3 and PROJ_HEIGHT_1>=22.8)) AND ((bec_zone_code = 'BWBS' AND bec_subzone IN ('dk', 'mw', 'mk', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'));")
+
+denning.boreal2020<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'AC%'  or SPECIES_CD_2 LIKE 'AC%' or  SPECIES_CD_3 LIKE 'AC%') and PROJ_AGE_1>=105 and QUAD_DIAM_125>=19.5 and PROJ_HEIGHT_1>=19) or ((SPECIES_CD_1 LIKE 'AT%'  or SPECIES_CD_2 LIKE 'AT%' or  SPECIES_CD_3 LIKE 'AT%') and PROJ_AGE_1>=115 and QUAD_DIAM_125>=21.3 and PROJ_HEIGHT_1>=22.8)) AND ((bec_zone_code = 'BWBS' AND bec_subzone IN ('dk', 'mw', 'mk', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'));")
+
+denning<-rbindlist(list(denning.dry.for,denning.sbs.dry, denning.sbs.wet,denning.boreal))
+denning<-unique(denning$feature_id)
+denning.poly<-layer[layer$feature_id %in% denning,]
+denning.poly$denning<-1
+denning.ras <-fasterize::fasterize(denning.poly, prov.rast, field = "denning") 
+
+denning2020<-rbindlist(list(denning.dry.for2020,denning.sbs.dry2020, denning.sbs.wet2020,denning.boreal2020))
+denning2020<-unique(denning2020$feature_id)
+denning.poly2020<-layer2020[layer2020$feature_id %in% denning2020,]
+denning.poly2020$denning<-1
+denning.ras2020 <-fasterize::fasterize(denning.poly2020, prov.rast, field = "denning") 
+
+#add in from 2020
+
+denning.ras2020[is.na(denning.ras2020[])]<-0
+denning.ras[is.na(denning.ras[])]<-0
+denning.ras2<-denning.ras + denning.ras2020
+denning.ras2[denning.ras2[] > 1]<-1
+
+writeRaster(denning.ras2, file="denning2003.tif", format="GTiff", overwrite=TRUE)
+```
+
+##### Resting: Rust Brooms
+The following queries specify the forest structure needed for resting sites
+```{r, rust_brooms}
+#SBS: WET. Hybrid spruce (Sx) leading, secondary, or tertiary species. Crown closure ≥30% QMD_125 ≥22.7 cm Basal area ≥35 m²/ha Stand age ≥135 years Stand height ≥23.7 m
+#rest.rust.sbs.wet<- habitat[(species_cd_1 %in% c('SX') | species_cd_2 %in% c('SX') | species_cd_3 %in% c('SX') ) & crown_closure >= 30 & quad_diam_125 >= 22.7 & basal_area >= 35 & proj_age_1 >= 135 & bec_zone_code == 'SBS' & bec_subzone %in% c('wk','mk','mm','mw'), "feature_id"]
+rest.rust.sbs.wet<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (CROWN_CLOSURE>=30) and (QUAD_DIAM_125>=22.7) and (BASAL_AREA>=35) and (PROJ_AGE_1>=135) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')")
+rest.rust.sbs.wet2020<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where ((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (CROWN_CLOSURE>=30) and (QUAD_DIAM_125>=22.7) and (BASAL_AREA>=35) and (PROJ_AGE_1>=152) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')")
+
+
+#SBS DRY: Sx leading, secondary, or tertiary species Crown closure ≥25% QMD_125 ≥19.6 cm Basal area ≥32 m²/ha Stand age ≥72 years
+#rest.rust.sbs.dry<- habitat[(species_cd_1 %in% c('SX') | species_cd_2 %in% c('SX') | species_cd_3 %in% c('SX') ) & crown_closure >= 25 & quad_diam_125 >= 19.6 & basal_area >= 32 & proj_age_1 >= 72 & bec_zone_code == 'SBS' & bec_subzone %in% c('dw','dh','dk'), "feature_id"]
+rest.rust.sbs.dry<- getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (PROJ_AGE_1>=72) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=19.6) and (BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')")
+rest.rust.sbs.dry2020<- getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where ((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (PROJ_AGE_1>=89) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=19.6) and (BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')")
+
+#DRY FOREST:Sx leading, secondary, or tertiary species Crown closure ≥40% QMD_125 ≥20.1 cm Stand age ≥83 years
+#rest.rust.dry.for<- habitat[(species_cd_1 %in% c('SX') | species_cd_2 %in% c('SX') | species_cd_3 %in% c('SX') ) & proj_age_1 >= 83 & crown_closure >= 40 & quad_diam_125 >= 20.1 & ((bec_zone_code == 'SBPS' & bec_subzone %in% c('xc','mc','dc','mk')) | (bec_zone_code == 'IDF' & bec_subzone %in% c('dk','dc','mw','dw','ww')) | (bec_zone_code == 'MS' & bec_subzone %in% c('xc','xk','dv','dm', 'dk', 'dc'))), "feature_id"]
+rest.rust.dry.for<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2003 where (((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (PROJ_AGE_1>=83) and (CROWN_CLOSURE>=40) and (QUAD_DIAM_125>=20.1)) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+ rest.rust.dry.for2020<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2020 where (((SPECIES_CD_1 LIKE 'S%')  or (SPECIES_CD_2 LIKE 'S%') or ( SPECIES_CD_3 LIKE 'S%')) and (PROJ_AGE_1>=100) and (CROWN_CLOSURE>=40) and (QUAD_DIAM_125>=20.1)) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+ 
+#BOREAL
+#rest.rust.boreal <- habitat[(((species_cd_1 %in% c( 'SW') | species_cd_2 %in% c( 'SW') | species_cd_3 %in% c( 'SW')) & crown_closure >= 50 & proj_age_1 >= 78 & proj_height_1 >= 19 & quad_diam_125 >= 18.5) | ((species_cd_1 %in% c( 'SB') | species_cd_2 %in% c( 'SB') | species_cd_3 %in% c( 'SB')) & crown_closure >= 35 & proj_age_1 >= 68 & proj_height_1 >= 14.8 & quad_diam_125 >= 17)) & ((bec_zone_code == 'BWBS' & bec_subzone %in% c('dk', 'mw', 'wk'))|(bec_zone_code == 'SBS' & bec_subzone == 'wk' & bec_variant == '2')), "feature_id"]
+rest.rust.boreal<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((((SPECIES_CD_1 LIKE 'SW%')  or (SPECIES_CD_2 LIKE 'SW%') or (SPECIES_CD_3 LIKE 'SW%')) and (PROJ_AGE_1>=78) and (CROWN_CLOSURE>=50) and (QUAD_DIAM_125>=18.5) and (PROJ_HEIGHT_1>=19) and (BASAL_AREA>=31.4 )) or (((SPECIES_CD_1 LIKE 'SB%')  or (SPECIES_CD_2 LIKE 'SB%') or ( SPECIES_CD_3 LIKE 'SB%')) and (PROJ_AGE_1>=68) and (CROWN_CLOSURE>=35) and (QUAD_DIAM_125>=17) and (PROJ_HEIGHT_1>=14.8))) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))")
+rest.rust.boreal2020<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where ((((SPECIES_CD_1 LIKE 'SW%')  or (SPECIES_CD_2 LIKE 'SW%') or (SPECIES_CD_3 LIKE 'SW%')) and (PROJ_AGE_1>=95) and (CROWN_CLOSURE>=50) and (QUAD_DIAM_125>=18.5) and (PROJ_HEIGHT_1>=19) and (BASAL_AREA>=31.4 )) or (((SPECIES_CD_1 LIKE 'SB%')  or (SPECIES_CD_2 LIKE 'SB%') or ( SPECIES_CD_3 LIKE 'SB%')) and (PROJ_AGE_1>=85) and (CROWN_CLOSURE>=35) and (QUAD_DIAM_125>=17) and (PROJ_HEIGHT_1>=14.8))) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))")
+
+rest.rust<-rbindlist(list(rest.rust.dry.for,rest.rust.sbs.dry, rest.rust.sbs.wet, rest.rust.boreal))
+rest.rust<-unique(rest.rust$feature_id)
+rest.rust.poly<-layer[layer$feature_id %in% rest.rust,]
+rest.rust.poly$rust<-1
+rest.rust.ras <-fasterize::fasterize(rest.rust.poly, prov.rast, field = "rust") 
+
+rest.rust2020<-rbindlist(list(rest.rust.dry.for2020,rest.rust.sbs.dry2020, rest.rust.sbs.wet2020, rest.rust.boreal2020))
+rest.rust2020<-unique(rest.rust2020$feature_id)
+rest.rust.poly2020<-layer2020[layer2020$feature_id %in% rest.rust2020,]
+rest.rust.poly2020$rust<-1
+rest.rust.ras2020 <-fasterize::fasterize(rest.rust.poly2020, prov.rast, field = "rust") 
+
+rest.rust.ras2020[is.na(rest.rust.ras2020[])]<-0
+rest.rust.ras[is.na(rest.rust.ras[])]<-0
+rest.rust.ras2<-rest.rust.ras + rest.rust.ras2020
+rest.rust.ras2[rest.rust.ras2[] > 1]<-1
+
+writeRaster(rest.rust.ras2, file="rest_rust2003.tif", format="GTiff", overwrite=TRUE)
+```
+
+##### Resting habitat: cavity
+The following queries specify the forest structure needed for resting sites
+```{r, rest_cavity}
+#SBS-WET Act or At leading, secondary, or tertiary species  Crown closure ≥25% QMD_125 ≥30 cm Basal area ≥32 m²/ha Stand height ≥35 m 7
+#rest.cavity.sbs.wet<- habitat[(species_cd_1 %in% c('ACT', 'AT') | species_cd_2 %in% c('ACT', 'AT') | species_cd_3 %in% c('ACT', 'AT') ) & crown_closure >= 25 & quad_diam_125 >= 30 & basal_area >= 32 & proj_height_1 >= 35 & bec_zone_code == 'SBS' & bec_subzone %in% c('wk','mk','mm','mw'), "feature_id"]
+rest.cavity.sbs.wet<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or ( SPECIES_CD_3 LIKE 'A%')) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=30) and (BASAL_AREA>=32) and (PROJ_HEIGHT_1>=35) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')")
+  
+#SBS-DRY Act or At leading, secondary, or tertiary species  Crown closure ≥25% QMD_125 ≥30 cm Basal area ≥32 m²/ha Stand height ≥35 m 
+#rest.cavity.sbs.dry<- habitat[(species_cd_1 %in% c('ACT', 'AT') | species_cd_2 %in% c('ACT', 'AT') | species_cd_3 %in% c('ACT', 'AT') ) & crown_closure >= 25 & quad_diam_125 >= 30 & basal_area >= 32 & proj_height_1 >= 35 & ((bec_zone_code == 'SBPS' & bec_subzone %in% c('xc','mc','dc','mk')) | (bec_zone_code == 'IDF' & bec_subzone %in% c('dk','dc','mw','dw','ww')) | (bec_zone_code == 'MS' & bec_subzone %in% c('xc','xk','dv','dm', 'dk', 'dc'))), "feature_id"]
+rest.cavity.sbs.dry<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where (((SPECIES_CD_1 LIKE 'A%')  or (SPECIES_CD_2 LIKE 'A%') or (SPECIES_CD_3 LIKE 'A%')) and PROJ_HEIGHT_1>=35 and BASAL_AREA>=32) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')")
+  
+rest.cavity<-rbindlist(list(rest.cavity.sbs.wet,rest.cavity.sbs.dry))
+rest.cavity<-unique(rest.cavity$feature_id)
+rest.cavity.poly<-layer[layer$feature_id %in% rest.cavity,]
+rest.cavity.poly$cavity<-1
+rest.cavity.ras <-fasterize::fasterize(rest.cavity.poly, prov.rast, field = "cavity") 
+writeRaster(rest.cavity.ras, file="rest_cavity2003.tif", format="GTiff", overwrite=TRUE)
+```
+
+##### Resting: coarse woody
+The following queries specify the forest structure needed for resting sites
+```{r, rest_cwd}
+#SBS_WET. QMD_125 ≥22.7 cm Stand age ≥135 years  Stand height ≥23.7 m 
+#rest.cwd.sbs.wet<- habitat[ quad_diam_125 >= 22.7 & proj_age_1 >= 135 & proj_height_1 >= 23.7 & bec_zone_code == 'SBS' & bec_subzone %in% c('wk','mk','mm','mw'), "feature_id"]
+rest.cwd.sbs.wet<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where  (PROJ_AGE_1>=135) and (QUAD_DIAM_125>=22.7) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')")
+rest.cwd.sbs.wet2020<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where  (PROJ_AGE_1>=152) and (QUAD_DIAM_125>=22.7) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')")
+
+  
+#SBS-DRY. QMD_125 ≥22.7 cm Stand age ≥135 years Stand height ≥23.7 m 
+#rest.cwd.sbs.dry<- habitat[ quad_diam_125 >= 22.7 & proj_age_1 >= 135 & proj_height_1 >= 23.7 & bec_zone_code == 'SBS' & bec_subzone %in% c('dw','dh','dk'), "feature_id"]
+rest.cwd.sbs.dry<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where (PROJ_AGE_1>=135) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=22.7) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')")
+rest.cwd.sbs.dry2020<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where (PROJ_AGE_1>=152) and (CROWN_CLOSURE>=25) and (QUAD_DIAM_125>=22.7) and (PROJ_HEIGHT_1>=23.7) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')")
+   
+  
+#DRY_FOR.	Hybrid spruce (Sx) or Trembling aspen (At) >25% of stand (SPECIES_PCT) Stand age ≥100 years 
+#rest.cwd.dry.for<- habitat[((species_cd_1 %in% c('SX', 'SE', 'SXW', 'AT') & species_pct_1 >= 25)| (species_cd_2 %in% c('SX', 'SE', 'SXW', 'AT') & species_pct_2 >= 25) | (species_cd_3 %in% c('SX', 'SE', 'SXW', 'AT') & species_pct_3 >= 25) ) & proj_age_1 >= 100 & ((bec_zone_code == 'SBPS' & bec_subzone %in% c('xc','mc','dc','mk')) | (bec_zone_code == 'IDF' & bec_subzone %in% c('dk','dc','mw','dw','ww')) | (bec_zone_code == 'MS' & bec_subzone %in% c('xc','xk','dv','dm', 'dk', 'dc'))), "feature_id"]
+rest.cwd.dry.for<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2003 where ((((SPECIES_CD_1 LIKE 'S%' and SPECIES_PCT_1>=25) or (SPECIES_CD_2 LIKE 'S%' and SPECIES_PCT_2>=25) or (SPECIES_CD_3 LIKE 'S%' and SPECIES_PCT_3>=25)) or ((SPECIES_CD_1 LIKE 'AT%' and SPECIES_PCT_1>=25) or (SPECIES_CD_2 LIKE 'AT%' and SPECIES_PCT_2>=25) or (SPECIES_CD_3 LIKE 'AT%' and SPECIES_PCT_3>=25))) and (PROJ_AGE_1>=100)) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+rest.cwd.dry.for2020<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2020 where ((((SPECIES_CD_1 LIKE 'S%' and SPECIES_PCT_1>=25) or (SPECIES_CD_2 LIKE 'S%' and SPECIES_PCT_2>=25) or (SPECIES_CD_3 LIKE 'S%' and SPECIES_PCT_3>=25)) or ((SPECIES_CD_1 LIKE 'AT%' and SPECIES_PCT_1>=25) or (SPECIES_CD_2 LIKE 'AT%' and SPECIES_PCT_2>=25) or (SPECIES_CD_3 LIKE 'AT%' and SPECIES_PCT_3>=25))) and (PROJ_AGE_1>=117)) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+  
+#rest.cwd.boreal <- habitat[(crown_closure >= 60 & proj_age_1 >= 78 & proj_height_1 >= 19 & quad_diam_125 >= 18.1) & ((bec_zone_code == 'BWBS' & bec_subzone %in% c('dk', 'mw', 'wk'))|(bec_zone_code == 'SBS' & bec_subzone == 'wk' & bec_variant == '2')), "feature_id"]
+rest.cwd.boreal <-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((PROJ_AGE_1>=78) and (QUAD_DIAM_125>=18.1) and (PROJ_HEIGHT_1>=19) and (CROWN_CLOSURE>=60)) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))")
+rest.cwd.boreal2020 <-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2020 where ((PROJ_AGE_1>=95) and (QUAD_DIAM_125>=18.1) and (PROJ_HEIGHT_1>=19) and (CROWN_CLOSURE>=60)) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))")
+
+rest.cwd<-rbindlist(list(rest.cwd.sbs.wet,rest.cwd.sbs.dry,rest.cwd.dry.for,rest.cwd.boreal))
+rest.cwd<-unique(rest.cwd$feature_id)
+rest.cwd.poly<-layer[layer$feature_id %in% rest.cwd,]
+rest.cwd.poly$cwd<-1
+rest.cwd.ras <-fasterize::fasterize(rest.cwd.poly, prov.rast, field = "cwd") 
+
+rest.cwd2020<-rbindlist(list(rest.cwd.sbs.wet2020,rest.cwd.sbs.dry2020,rest.cwd.dry.for2020,rest.cwd.boreal2020))
+rest.cwd2020<-unique(rest.cwd2020$feature_id)
+rest.cwd.poly2020<-layer2020[layer2020$feature_id %in% rest.cwd2020,]
+rest.cwd.poly2020$cwd<-1
+rest.cwd.ras2020 <-fasterize::fasterize(rest.cwd.poly2020, prov.rast, field = "cwd") 
+
+rest.cwd.ras2020[is.na(rest.cwd.ras2020[])]<-0
+rest.cwd.ras[is.na(rest.cwd.ras[])]<-0
+rest.cwd.ras2<-rest.cwd.ras + rest.cwd.ras2020
+rest.cwd.ras2[rest.cwd.ras2[] > 1]<-1
+
+writeRaster(rest.cwd.ras2, file="rest_cwd2003.tif", format="GTiff", overwrite=TRUE)
+```
+
+##### Movement habitat
+The following queries specify the forest structure needed for movement
+```{r, movement}
+#SBS_WET. Total cover ≥50% (≥30% shrub and ≥20% tree cover)
+#shrub cover max 30%
+#movement.sbs.wet<- habitat[ (crown_closure + shrub_crown_closure >=50 & crown_closure > 30) & bec_zone_code == 'SBS' & bec_subzone %in% c('wk','mk','mm','mw'), "feature_id"]
+movement.sbs.wet<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((crown_closure + shrub_crown_closure >= 50 and crown_closure > 30) or crown_closure >= 50) and bec_zone_code = 'SBS' and bec_subzone in('wk','mk','mm','mw')")
+
+#SBS-DRY. Total cover ≥50% (≥30% shrub and ≥20% tree cover)
+#movement.sbs.dry<- habitat[ (crown_closure + shrub_crown_closure >=50 & crown_closure > 30) & bec_zone_code == 'SBS' & bec_subzone %in% c('dw','dh','dk'), "feature_id"]
+movement.sbs.dry<-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((crown_closure + shrub_crown_closure >= 50 and crown_closure > 30) or crown_closure >= 50) and bec_zone_code = 'SBS' and bec_subzone in ('dw','dh','dk')")
+
+#DRY_FOR.	Total cover ≥50% (≥30% shrub and ≥20% tree cover) 
+#movement.dry.for<- habitat[(crown_closure + shrub_crown_closure >=50 & crown_closure > 30) & ((bec_zone_code == 'SBPS' & bec_subzone %in% c('xc','mc','dc','mk')) | (bec_zone_code == 'IDF' & bec_subzone %in% c('dk','dc','mw','dw','ww')) | (bec_zone_code == 'MS' & bec_subzone %in% c('xc','xk','dv','dm', 'dk', 'dc'))), "feature_id"]
+movement.dry.for<-getTableQuery(
+  "select feature_id from public.veg_comp_lyr_r1_poly2003 where  ((crown_closure + shrub_crown_closure >= 50 and crown_closure > 30) or crown_closure >= 50) and ((bec_zone_code = 'SBPS' and bec_subzone in('xc','mc','dc','mk')) or (bec_zone_code = 'IDF' and bec_subzone in('dk','dc','mw','dw','ww')) or (bec_zone_code = 'MS' and bec_subzone in('xc','xk','dv','dm', 'dk', 'dc')))")
+
+#movement.boreal <- habitat[(crown_closure + shrub_crown_closure >=50 & crown_closure > 30) & ((bec_zone_code == 'BWBS' & bec_subzone %in% c('dk', 'mw', 'wk'))|(bec_zone_code == 'SBS' & bec_subzone == 'wk' & bec_variant == '2')), "feature_id"]
+movement.boreal <-getTableQuery("select feature_id from public.veg_comp_lyr_r1_poly2003 where ((crown_closure + shrub_crown_closure >= 50 and crown_closure > 30) or crown_closure >= 50) and ((bec_zone_code = 'BWBS' and bec_subzone in ('dk', 'mw', 'wk')) or (bec_zone_code ='SBS' and bec_subzone = 'wk' and bec_variant ='2'))")
+  
+movement<-rbindlist(list(movement.sbs.wet,movement.sbs.dry,movement.dry.for,movement.boreal))
+movement<-unique(movement$feature_id)
+movement.poly<-layer[layer$feature_id %in% movement,]
+movement.poly$movement<-1
+movement.ras <-fasterize::fasterize(movement.poly, prov.rast, field = "movement") 
+writeRaster(movement.ras, file="movement2003.tif", format="GTiff", overwrite=TRUE)
+```
+
+
+##Calculate D2
+```{r, d2}
+#get the boundary of the rcb
+rcb.poly<-getSpatialQuery("select * from nat_dr where region_org = 'RCB';")
+
+fetas.poly<-sf::st_read("C:/Users/klochhea/fetaMapper/data-raw/feta_v0.shp")
+fetas.poly
+feta.ras <- RASTER_CLIP2 (tmpRast = paste0('temp_', sample(1:10000, 1)), srcRaster =  'rast.feta_id', # 
+                                clipper="nat_dr", geom="wkb_geometry", 
+                                where_clause =  paste0 ("region_org in (''", paste("RCB", sep = "' '", collapse= "'', ''") ,"'')"),
+                                conn = NULL)
+
+fetas.poly<-fetas.poly[fetas.poly$fid %in% unique(feta.ras[]),]
+plot(fetas.poly[c(2:6,9)])
+
+## extract the historic
+hab_den2003.ras<-raster("C:/Users/klochhea/fetaMapper/data-raw/denning2003.tif")
+fetas.poly$hab_den2003<- exactextractr::exact_extract(hab_den2003.ras,fetas.poly,c('sum'))
+
+hab_mov2003.ras<-raster("C:/Users/klochhea/fetaMapper/data-raw/movement2003.tif")
+fetas.poly$hab_mov2003<- exactextractr::exact_extract(hab_mov2003.ras,fetas.poly,c('sum'))
+
+hab_cwd2003.ras<-raster("C:/Users/klochhea/fetaMapper/data-raw/rest_cwd2003.tif")
+fetas.poly$hab_cwd2003<- exactextractr::exact_extract(hab_cwd2003.ras,fetas.poly,c('sum'))
+
+hab_rust2003.ras<-raster("C:/Users/klochhea/fetaMapper/data-raw/rest_rust2003.tif")
+fetas.poly$hab_rust2003<- exactextractr::exact_extract(hab_rust2003.ras,fetas.poly,c('sum'))
+
+hab_cav2003.ras<-raster("C:/Users/klochhea/fetaMapper/data-raw/rest_cavity2003.tif")
+fetas.poly$hab_cav2003<- exactextractr::exact_extract(hab_cav2003.ras,fetas.poly,c('sum'))
+
+```
