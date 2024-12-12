@@ -1,0 +1,174 @@
+---
+title: "Fisher_Habitat_Protections"
+output: html_document
+date: '2023-02-07'
+---
+
+```{r setup, include=FALSE}
+library(sf)
+library(data.table)
+source("C:/Users/klochhea/castor/R/functions/R_Postgres.R")
+library(fasterize)
+lu<-getSpatialQuery("SELECT wkb_geometry 
+FROM public.rmp_lu_sp_polygon limit 1")
+
+ProvRast <- raster(
+  nrows = 15744, ncols = 17216, xmn = 159587.5, xmx = 1881187.5, ymn = 173787.5, ymx = 1748187.5, 
+  crs = st_crs(lu)$proj4string, resolution = c(100, 100), vals = 0
+)
+```
+
+## Protections layer
+
+```{r}
+prots<-st_read("C:/Users/klochhea/Downloads/ForestHarvestingRestrictions.gdb")
+prots.table<-data.table(st_drop_geometry(prots))
+protect<-prots[prots$rr_restriction_rollup %in% c('01_Protected', '02_Prohibited'), ]
+protect$protect<-1
+
+prot.ras<-fasterize::fasterize(sf= protect, raster = ProvRast , field = "protect")
+prot.ras[is.na(prot.ras[])]<-0
+writeRaster(prot.ras, "prot.tif",overwrite=TRUE)
+prot.ras[prot.ras[]==1,]<-2
+prot.ras[prot.ras[]==0,]<-1
+prot.ras[prot.ras[]==2,]<-0
+
+#Priority Deferral
+deferral<-raster("C:/Users/klochhea/castor/prioirty_deferral.tif")
+incr_pri<-prot.ras*deferral
+writeRaster(incr_pri, "incr_pri_old.tif",overwrite=TRUE)
+
+```
+
+## Overlap with habitat
+
+```{r}
+if(FALSE){
+columbia<-getSpatialQuery("SELECT 1 as hab, wkb_geometry FROM public.fisher_habitat_zones_2020 where hab_zone != 'Boreal'")
+columbia.ras<-fasterize::fasterize(sf= columbia, raster = ProvRast , field = "hab")
+columbia.ras[is.na(columbia.ras[])]<-0
+}
+
+if(FALSE){
+  rcb<-getSpatialQuery("select   1 as aoi, wkb_geometry from public.nat_dr where region_org = 'RCB'")
+  rcb.ras<-fasterize::fasterize(sf= rcb, raster = ProvRast , field = "aoi")
+  rcb.ras[is.na(rcb.ras[])]<-0
+}
+
+if(FALSE){
+  current_suitable<-st_read("C:/Users/klochhea/fetaMapper/data-raw/feta_v1.shp")
+  current_suitable<-current_suitable[current_suitable$d2 <=7,]
+  current_suitable$suitable<-1
+  current_suitable.ras<-fasterize::fasterize(sf= current_suitable, raster = ProvRast , field = "suitable")
+  current_suitable.ras[is.na(current_suitable.ras[])]<-0
+  
+}
+
+### what area to focus on?
+aoi.ras<-rcb.ras
+
+prot.ras<-raster("C:/Users/klochhea/fetaMapper/data-raw/prot.tif")
+prot.ras[is.na(prot.ras[])]<-0
+og_def<-raster("C:/Users/klochhea/fetaMapper/data-raw/incr_pri_old.tif")
+og_def[is.na(og_def[])]<-0
+thlb<-raster("C:/Users/klochhea/fetaMapper/data-raw/thlb2020.tif")
+thlb[is.na(thlb[])]<-0
+
+thlb2<-1-thlb
+
+
+prot.ras2<-prot.ras+thlb2
+prot.ras2[prot.ras2[]>1]<-1
+
+prot.ras2<-prot.ras2*aoi.ras
+og_def2<-og_def*aoi.ras
+
+#denning
+denning<-raster("C:/Users/klochhea/fetaMapper/data-raw/denning.tif")
+denning[is.na(denning[])]<-0.0
+denning[]<-as.numeric(denning[])
+denning<-denning*aoi.ras
+
+den.prot<-denning * prot.ras2
+den.def<-denning * og_def2
+denning.sum<-data.table(hab = 'denning', total =sum(denning[], na.rm=T) , legal_prot = sum(den.prot[], na.rm=T), og_def = sum(den.def[], na.rm=T))
+
+
+rust<-raster("C:/Users/klochhea/fetaMapper/data-raw/rest_rust.tif")
+rust<-rust*aoi.ras
+rust.prot<-rust * prot.ras2
+rust.def<-rust * og_def2
+rust.sum<-data.table(hab = 'rust', total =sum(rust[], na.rm=T) , legal_prot = sum(rust.prot[], na.rm=T), og_def = sum(rust.def[], na.rm=T))
+
+cwd<-raster("C:/Users/klochhea/fetaMapper/data-raw/rest_cwd.tif")
+cwd<-cwd*aoi.ras
+cwd.prot<-cwd * prot.ras2
+cwd.def<-cwd * og_def2
+cwd.sum<-data.table(hab = 'cwd', total =sum(cwd[], na.rm=T) , legal_prot = sum(cwd.prot[], na.rm=T), og_def = sum(cwd.def[], na.rm=T))
+
+cav<-raster("C:/Users/klochhea/fetaMapper/data-raw/rest_cavity.tif")
+cav<-cav*aoi.ras
+cav.prot<-cav * prot.ras2
+cav.def<-cav * og_def2
+cav.sum<-data.table(hab = 'cavity', total =sum(cav[], na.rm=T) , legal_prot = sum(cav.prot[], na.rm=T), og_def = sum(cav.def[], na.rm=T))
+
+
+mov<-raster("C:/Users/klochhea/fetaMapper/data-raw/movement.tif")
+mov<-mov*aoi.ras
+mov.prot<-mov * prot.ras2
+mov.def<-mov * og_def2
+mov.sum<-data.table(hab = 'movement', total =sum(mov[], na.rm=T) , legal_prot = sum(mov.prot[], na.rm=T), og_def = sum(mov.def[], na.rm=T))
+
+sum.bc<-rbindlist(list(denning.sum,rust.sum,cwd.sum,cav.sum,mov.sum))
+sum.bc$p_legal_prot<-sum.bc$legal_prot/sum.bc$total
+sum.bc$p_og_def<-sum.bc$og_def/sum.bc$total
+```
+
+
+
+
+### Protections in future habitat -- recovery overlap
+```{r}
+fisher.habitat.30yrs <- readRDS("C:/Users/klochhea/castor/R/scenarios/fisher_cclup/fisher.habitat.30yrs.rds")
+userdb <- dbConnect(RSQLite::SQLite(), dbname = paste0(here::here(), "/R/scenarios/fisher_cclup/rcb_castordb.sqlite") )
+ras.info<-dbGetQuery(userdb, "Select * from raster_info limit 1;")
+ras<-raster(extent(ras.info$xmin, ras.info$xmax, ras.info$ymin, ras.info$ymax), nrow = ras.info$nrow, ncol = ras.info$ncell/ras.info$nrow, vals =0)
+dbDisconnect(userdb)
+
+denning<-ras
+denning[fisher.habitat.30yrs$pixelid]<-fisher.habitat.30yrs$denning
+rust<-ras
+rust[fisher.habitat.30yrs$pixelid]<-fisher.habitat.30yrs$rust
+cwd<-ras
+cwd[fisher.habitat.30yrs$pixelid]<-fisher.habitat.30yrs$cwd
+cav<-ras
+cav[fisher.habitat.30yrs$pixelid]<-fisher.habitat.30yrs$cavity
+mov<-ras
+mov[fisher.habitat.30yrs$pixelid]<-fisher.habitat.30yrs$movement
+
+
+den.prot<-denning * prot.ras2
+den.def<-denning * og_def2
+denning.sum<-data.table(hab = 'denning', total =sum(denning[], na.rm=T) , legal_prot = sum(den.prot[], na.rm=T), og_def = sum(den.def[], na.rm=T))
+
+rust.prot<-rust * prot.ras2
+rust.def<-rust * og_def2
+rust.sum<-data.table(hab = 'rust', total =sum(rust[], na.rm=T) , legal_prot = sum(rust.prot[], na.rm=T), og_def = sum(rust.def[], na.rm=T))
+
+cwd.prot<-cwd * prot.ras2
+cwd.def<-cwd * og_def2
+cwd.sum<-data.table(hab = 'cwd', total =sum(cwd[], na.rm=T) , legal_prot = sum(cwd.prot[], na.rm=T), og_def = sum(cwd.def[], na.rm=T))
+
+cav.prot<-cav * prot.ras2
+cav.def<-cav * og_def2
+cav.sum<-data.table(hab = 'cavity', total =sum(cav[], na.rm=T) , legal_prot = sum(cav.prot[], na.rm=T), og_def = sum(cav.def[], na.rm=T))
+
+mov.prot<-mov * prot.ras2
+mov.def<-mov * og_def2
+mov.sum<-data.table(hab = 'movement', total =sum(mov[], na.rm=T) , legal_prot = sum(mov.prot[], na.rm=T), og_def = sum(mov.def[], na.rm=T))
+
+sum.bc<-rbindlist(list(denning.sum,rust.sum,cwd.sum,cav.sum,mov.sum))
+sum.bc$p_legal_prot<-sum.bc$legal_prot/sum.bc$total
+sum.bc$p_og_def<-sum.bc$og_def/sum.bc$total
+```
+
